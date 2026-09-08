@@ -303,6 +303,22 @@ git commit -m "feat: my feature"
 git push -u origin feat/my-feature
 ```
 
+See **[CONTRIBUTORS.md](CONTRIBUTORS.md)** — made with ❤️ by **glainejustin** 💖
+
+---
+
+## 👥 Contributors
+
+<p align="center">
+  <a href="https://github.com/glainejustin">
+    <img src="https://github.com/glainejustin.png" width="80" style="border-radius:50%" alt="glainejustin" /><br/>
+    <strong>glainejustin</strong>
+  </a><br/>
+  <sub>Creator & Maintainer — with love ❤️</sub>
+</p>
+
+Full credits: **[CONTRIBUTORS.md](CONTRIBUTORS.md)**
+
 ---
 
 ## 📄 License
