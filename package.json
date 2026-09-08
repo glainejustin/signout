@@ -1,14 +1,17 @@
 {
-  "name": "signinout",
+  "name": "worktap",
   "version": "1.0.0",
-  "description": "",
-  "main": "google-apps-script.js",
+  "description": "WorkTap — NFC worker attendance PWA with rota, GPS geofence & Google Sheets sync",
+  "main": "index.html",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "npx serve .",
+    "sync": "npx cap sync",
+    "android": "npx cap open android"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": ["pwa","nfc","attendance","workforce","geofence","google-sheets","capacitor","offline-first"],
+  "author": "glainejustin",
+  "license": "MIT",
   "type": "commonjs",
   "dependencies": {
     "@capacitor/android": "^8.5.1",

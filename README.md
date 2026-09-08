@@ -14,7 +14,7 @@
   <img src="https://img.shields.io/badge/Offline-First-009624?style=flat-square" alt="Offline First" />
   <img src="https://img.shields.io/badge/NFC-Web%20API-e65100?style=flat-square" alt="Web NFC" />
   <img src="https://img.shields.io/badge/Capacitor-Android-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Capacitor" />
-  <img src="https://img.shieldsExpiry.com/badge/License-MIT-yellow?style=flat-square" alt="License MIT" />
+  <img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="License MIT" />
 </p>
 
 <p align="center">

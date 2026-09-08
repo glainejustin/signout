@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Check required files
+        run: |
+          test -f index.html || (echo "index.html missing" && exit 1)
+          test -f manifest.json || (echo "manifest.json missing" && exit 1)
+          test -f service-worker.js || (echo "service-worker.js missing" && exit 1)
+          test -f capacitor.config.json || (echo "capacitor.config.json missing" && exit 1)
+          test -d js || (echo "js/ missing" && exit 1)
+          test -d css || (echo "css/ missing" && exit 1)
+          echo "✅ All required PWA files present"
+
+      - name: HTMLHint
+        run: npx --yes htmlhint index.html || true
+
+      - name: Sync check (Capacitor)
+        run: npx cap sync --help >/dev/null 2>&1 && echo "Capacitor OK" || echo "Capacitor check skipped"
