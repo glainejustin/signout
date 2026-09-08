@@ -161,3 +161,6 @@ SignOut is a **local-first PWA** with no backend. It is suitable for small teams
 * MDN: Content Security Policy, Web Crypto API, Service Worker security
 * Google PWA checklist — HTTPS, CSP, offline
 
+---
+
+<p align="center">Made with ❤️ by <a href="https://github.com/glainejustin"><strong>glainejustin</strong></a> — with love 💖</p>

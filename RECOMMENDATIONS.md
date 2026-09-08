@@ -128,3 +128,7 @@ After that you have a **credible v1.1** you can sell to teams handling real payr
 ---
 
 *Have a feature you need first? Open an issue or ping `glaine100justin@gmail.com`.*
+
+---
+
+<p align="center">Made with ❤️ by <a href="https://github.com/glainejustin"><strong>glainejustin</strong></a> — with love 💖</p>
