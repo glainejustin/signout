@@ -89,6 +89,20 @@ const Admin = (() => {
       document.getElementById('locationModal').classList.add('hidden');
     });
     document.getElementById('btnSaveLocation').addEventListener('click', saveLocation);
+    // Delegated admin actions (leave approve/reject, delete location)
+    const _leaveList = document.getElementById('leaveRequestAdminList');
+    if (_leaveList) _leaveList.addEventListener('click', e => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const id = btn.dataset.id;
+      if (btn.dataset.action === 'approve-leave') resolveLeave(id, true);
+      else if (btn.dataset.action === 'reject-leave') resolveLeave(id, false);
+    });
+    const _locList = document.getElementById('locationList');
+    if (_locList) _locList.addEventListener('click', e => {
+      const btn = e.target.closest('[data-action="delete-loc"]');
+      if (btn) deleteLoc(btn.dataset.id);
+    });
   }
 
   function _lockAdmin() {
@@ -385,8 +399,8 @@ const Admin = (() => {
         ${r.reason ? `<div class="leave-card-reason">"${_esc(r.reason)}"</div>` : ''}
         ${r.status === 'pending' ? `
           <div class="modal-actions" style="margin-top:10px;">
-            <button class="btn btn-out btn-sm" onclick="Admin.resolveLeave('${r.id}', false)">Reject</button>
-            <button class="btn btn-in btn-sm" onclick="Admin.resolveLeave('${r.id}', true)">Approve</button>
+            <button class="btn btn-out btn-sm" data-action="reject-leave" data-id="${(typeof Sanitize!=='undefined'?Sanitize.attr(r.id):_esc(r.id))}">Reject</button>
+            <button class="btn btn-in btn-sm" data-action="approve-leave" data-id="${(typeof Sanitize!=='undefined'?Sanitize.attr(r.id):_esc(r.id))}">Approve</button>
           </div>
         ` : ''}
       `;
@@ -412,7 +426,7 @@ const Admin = (() => {
       card.innerHTML = `
         <div class="leave-card-hdr">
           <span class="leave-card-name">🏢 ${_esc(l.name)}</span>
-          <button class="icon-btn delete" onclick="Admin.deleteLoc('${l.id}')">🗑</button>
+          <button class="icon-btn delete" data-action="delete-loc" data-id="${(typeof Sanitize!=='undefined'?Sanitize.attr(l.id):_esc(l.id))}">🗑</button>
         </div>
         <div class="leave-card-dates">📍 Coords: ${l.lat}, ${l.lng} · Radius: ${l.radius}m</div>
       `;

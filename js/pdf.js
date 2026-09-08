@@ -83,7 +83,7 @@ const PDFReport = (() => {
         </style>
       </head>
       <body>
-        <button class="no-print" onclick="window.print()" style="float:right;padding:8px 16px;background:#1a73e8;color:#fff;border:none;border-radius:4px;cursor:pointer;margin-bottom:12px;">🖨 Print / Save as PDF</button>
+        <button id="wtPrintBtn" class="no-print" style="float:right;padding:8px 16px;background:#1a73e8;color:#fff;border:none;border-radius:4px;cursor:pointer;margin-bottom:12px;">🖨 Print / Save as PDF</button>
         <div class="header">
           <div>
             <div class="company">${settings.businessName || 'WorkTap Attendance'}</div>
@@ -134,6 +134,9 @@ const PDFReport = (() => {
 
     printWindow.document.write(htmlContent);
     printWindow.document.close();
+    // Wire print button without inline handler (CSP-safe)
+    try { const b = printWindow.document.getElementById('wtPrintBtn'); if (b) b.addEventListener('click', () => printWindow.print()); } catch {}
+
   }
 
   return { printWorkerTimesheet };

@@ -20,6 +20,12 @@ const Logs = (() => {
     document.getElementById('photoViewClose').addEventListener('click', () => {
       document.getElementById('photoViewModal').classList.add('hidden');
     });
+    // Delegated photo view (hardened)
+    const _tbody = document.getElementById('logTableBody');
+    if (_tbody) _tbody.addEventListener('click', e => {
+      const btn = e.target.closest('[data-action="photo"]');
+      if (btn) viewPhoto(btn.dataset.id);
+    });
   }
 
   function render() {
@@ -53,8 +59,9 @@ const Logs = (() => {
       const badgeCls = l.action === 'IN' ? 'badge-in' : l.action === 'OUT' ? 'badge-out' : 'badge-break';
       const actionLabel = l.action === 'BREAK_START' ? 'BREAK START' : l.action === 'BREAK_END' ? 'RESUME' : l.action;
 
+      const escId = (typeof Sanitize!=='undefined'?Sanitize.attr(l.id):_esc(l.id));
       const photoBtn = l.photo
-        ? `<button class="photo-btn" onclick="Logs.viewPhoto('${l.id}')">📸</button>` : '—';
+        ? `<button class="photo-btn" data-action="photo" data-id="${escId}">📸</button>` : '—';
 
       const tr = document.createElement('tr');
       tr.className = isLate ? 'row-late' : isOT ? 'row-ot' : '';

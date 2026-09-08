@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#1a73e8" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://api.qrserver.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://hooks.slack.com https://hooks.office.com https://discord.com; worker-src 'self'; manifest-src 'self'" />
   <title>WorkTap - Sign In/Out</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="css/styles.css" />
@@ -754,14 +755,7 @@
   </div>
 </div>
 
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./service-worker.js')
-        .catch(e => console.warn('SW failed:', e));
-    });
-  }
-</script>
+<script src="js/security.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/face.js"></script>
 <script src="js/webhooks.js"></script>
@@ -778,5 +772,6 @@
 <script src="js/rota.js"></script>
 <script src="js/admin.js"></script>
 <script src="js/app.js"></script>
+<script src="js/sw-register.js"></script>
 </body>
 </html>

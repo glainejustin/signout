@@ -71,6 +71,12 @@ const Rota = (() => {
     });
 
     renderShiftLegend();
+    // Delegated shift edit (hardened)
+    const _legend = document.getElementById('shiftLegend');
+    if (_legend) _legend.addEventListener('click', e => {
+      const btn = e.target.closest('[data-action="edit-shift"]');
+      if (btn) openShiftModal(btn.dataset.id);
+    });
     renderGrid();
     _refreshTemplateDropdown();
   }
@@ -252,7 +258,7 @@ const Rota = (() => {
         <span class="shift-chip-dot" style="background:${s.color}"></span>
         <span class="shift-chip-name">${_esc(s.name)}</span>
         ${s.start ? `<span class="shift-chip-time">${_fmt12(s.start)}–${_fmt12(s.end)}</span>` : ''}
-        <button class="shift-chip-edit" onclick="Rota.openShiftModal('${s.id}')">✏️</button>
+        <button class="shift-chip-edit" data-action="edit-shift" data-id="${(typeof Sanitize!=='undefined'?Sanitize.attr(s.id):_esc(s.id))}">✏️</button>
       `;
       container.appendChild(chip);
     });
@@ -421,8 +427,8 @@ const Rota = (() => {
           </div>
           <div class="swap-date">📅 ${DAY_FULL[s.dayIndex]}, ${_fmtDate(dateStr)}</div>
           <div class="swap-actions">
-            <button class="btn btn-in swap-approve" data-id="${s.id}">✅ Approve</button>
-            <button class="btn btn-out swap-deny"   data-id="${s.id}">❌ Deny</button>
+            <button class="btn btn-in swap-approve" data-id="${(typeof Sanitize!=='undefined'?Sanitize.attr(s.id):_esc(s.id))}">✅ Approve</button>
+            <button class="btn btn-out swap-deny" data-id="${(typeof Sanitize!=='undefined'?Sanitize.attr(s.id):_esc(s.id))}">❌ Deny</button>
           </div>`;
         list.appendChild(card);
       });

@@ -221,6 +221,12 @@ const App = (() => {
 
     document.getElementById('gpsBlockedClose').addEventListener('click', () =>
       document.getElementById('gpsBlockedOverlay').classList.add('hidden'));
+    // Delegated photo view for myLog (hardened)
+    const _myLog2 = document.getElementById('myLogList');
+    if (_myLog2) _myLog2.addEventListener('click', e => {
+      const btn = e.target.closest('[data-action="photo"]');
+      if (btn) Logs.viewPhoto(btn.dataset.id);
+    });
 
     // History tab
     document.querySelectorAll('.worker-tab').forEach(t =>
@@ -333,7 +339,7 @@ const App = (() => {
       row.innerHTML = `
         <span class="my-log-badge ${l.action==='IN'?'badge-in':'badge-out'}">${l.action}</span>
         <span class="my-log-time">${l.time}</span>
-        ${l.photo ? `<button class="photo-thumb-btn" onclick="Logs.viewPhoto('${l.id}')">📸</button>` : ''}
+        ${(() => { const escId = (typeof Sanitize!=='undefined'?Sanitize.attr(l.id):_esc(l.id)); return l.photo ? `<button class="photo-thumb-btn" data-action="photo" data-id="${escId}">📸</button>` : ''; })()}
       `;
       list.appendChild(row);
     });
@@ -562,7 +568,7 @@ const App = (() => {
     if (!sel) return;
     sel.innerHTML = '<option value="">-- Select Worker --</option>';
     DB.getWorkers().forEach(w => {
-      sel.innerHTML += `<option value="${w.id}">${_esc(w.name)} (${w.role})</option>`;
+      sel.innerHTML += `<option value="${(typeof Sanitize!=='undefined'?Sanitize.attr(w.id):_esc(w.id))}">${(typeof Sanitize!=='undefined'?Sanitize.text(w.name):_esc(w.name))} (${(typeof Sanitize!=='undefined'?Sanitize.text(w.role):_esc(w.role))})</option>`;
     });
   }
 
@@ -644,7 +650,8 @@ const App = (() => {
       const type = document.getElementById('leaveTypeSelect').value;
       const start = document.getElementById('leaveStartDate').value;
       const end = document.getElementById('leaveEndDate').value;
-      const reason = document.getElementById('leaveReasonInput').value;
+      const _rawReason = document.getElementById('leaveReasonInput').value;
+      const reason = (typeof Sanitize!=='undefined'?Sanitize.strip(_rawReason,200):_rawReason.trim().slice(0,200));
 
       if (!start || !end) { showToast('Please select start and end dates.'); return; }
       DB.requestLeave(currentWorker.id, currentWorker.name, type, start, end, reason);

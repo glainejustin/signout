@@ -30,13 +30,14 @@ const DB = (() => {
   function saveWorkers(w) { localStorage.setItem(KEYS.WORKERS, JSON.stringify(w)); }
 
   function addWorker(name, role, username, pin, nfcId) {
+    const _s = (typeof Sanitize !== 'undefined' ? Sanitize.strip : (v,n)=>String(v||'').trim().slice(0,n||120));
     const workers = getWorkers();
     const worker = {
       id:                'w_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
-      name:              name.trim(),
-      role:              role.trim() || 'Worker',
-      username:          username.trim().toLowerCase(),
-      pin:               String(pin).trim(),
+      name:              _s(name, 80),
+      role:              _s(role, 60) || 'Worker',
+      username:          _s(username, 40).toLowerCase(),
+      pin:               String(pin).trim().slice(0,6),
       nfcId:             nfcId || '',
       clockedIn:         false,
       lastAction:        null,
@@ -602,6 +603,8 @@ const DB = (() => {
   }
 
   function addAuditLog(action, details, user = 'Admin') {
+    // Sanitize to prevent stored XSS via audit trail
+    if (typeof Sanitize !== 'undefined') { action = Sanitize.strip(action, 60); details = Sanitize.strip(details, 300); user = Sanitize.strip(user, 40) || 'Admin'; }
     const logs = getAuditLogs();
     const now = new Date();
     const entry = {
@@ -643,10 +646,11 @@ const DB = (() => {
   }
 
   function addLocation(name, lat, lng, radius) {
+    const _s2 = (typeof Sanitize !== 'undefined' ? Sanitize.strip : (v,n)=>String(v||'').trim().slice(0,n||120));
     const locs = getLocations();
     const loc = {
       id: 'loc_' + Date.now(),
-      name: name.trim() || 'Workplace',
+      name: _s2(name, 60) || 'Workplace',
       lat: String(lat).trim(),
       lng: String(lng).trim(),
       radius: Number(radius) || 100
@@ -675,14 +679,15 @@ const DB = (() => {
 
   function requestLeave(workerId, workerName, type, startDate, endDate, reason) {
     const reqs = getLeaveRequests();
+    const _s3 = (typeof Sanitize !== 'undefined' ? Sanitize.strip : (v,n)=>String(v||'').trim().slice(0,n||120));
     const req = {
       id: 'req_' + Date.now(),
       workerId,
-      workerName,
+      workerName: _s3(workerName, 80),
       type, // 'PTO' | 'Sick' | 'Personal'
       startDate,
       endDate,
-      reason: reason || '',
+      reason: _s3(reason, 200),
       status: 'pending', // 'pending' | 'approved' | 'rejected'
       createdAt: new Date().toISOString()
     };

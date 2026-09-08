@@ -7,11 +7,29 @@ const Workers = (() => {
 
   let editingId = null;
 
+  let _delegated = false;
   function init() {
     document.getElementById('openAddWorker').addEventListener('click', openAddModal);
     document.getElementById('modalCancel').addEventListener('click',  closeModal);
     document.getElementById('modalSave').addEventListener('click',    saveWorker);
     document.getElementById('scanNfcBtn').addEventListener('click',   scanTagForWorker);
+    // Delegated worker-card actions (prevents inline onclick XSS)
+    const _list = document.getElementById('workerList');
+    if (_list && !_delegated) {
+      _delegated = true;
+      _list.addEventListener('click', e => {
+        const btn = e.target.closest('[data-action]');
+        if (!btn || !_list.contains(btn)) return;
+        const id = btn.dataset.id;
+        const act = btn.dataset.action;
+        if (act === 'edit') openEditModal(id);
+        else if (act === 'pdf') PDFReport.printWorkerTimesheet(id, DB.getWeekRange().from, DB.getWeekRange().to);
+        else if (act === 'leave') toggleLeave(id);
+        else if (act === 'reset-device') confirmResetDevice(id);
+        else if (act === 'qr') showQR(id);
+        else if (act === 'delete') confirmDelete(id);
+      });
+    }
   }
 
   function render() {
@@ -65,12 +83,12 @@ const Workers = (() => {
         </div>
         <span class="worker-status ${w.clockedIn ? 'in' : ''}">${w.clockedIn ? '● IN' : '○ OUT'}</span>
         <div class="worker-actions">
-          <button class="icon-btn" title="Edit" onclick="Workers.openEditModal('${w.id}')">✏️</button>
-          <button class="icon-btn" title="Print Timesheet PDF" onclick="PDFReport.printWorkerTimesheet('${w.id}', DB.getWeekRange().from, DB.getWeekRange().to)">📄</button>
-          <button class="icon-btn" title="Toggle Leave" onclick="Workers.toggleLeave('${w.id}')">${w.onLeave ? '✈️' : '🏖'}</button>
-          ${w.deviceRegistered ? `<button class="icon-btn" title="Reset Device" onclick="Workers.confirmResetDevice('${w.id}')">📱</button>` : ''}
-          <button class="icon-btn" title="Print QR" onclick="Workers.showQR('${w.id}')">📷</button>
-          <button class="icon-btn delete" title="Delete" onclick="Workers.confirmDelete('${w.id}')">🗑️</button>
+          <button class="icon-btn" data-action="edit" data-id="${(typeof Sanitize!=='undefined'?Sanitize.attr(w.id):_esc(w.id))}" title="Edit">✏️</button>
+          <button class="icon-btn" data-action="pdf" data-id="${(typeof Sanitize!=='undefined'?Sanitize.attr(w.id):_esc(w.id))}" title="Print Timesheet PDF">📄</button>
+          <button class="icon-btn" data-action="leave" data-id="${(typeof Sanitize!=='undefined'?Sanitize.attr(w.id):_esc(w.id))}" title="Toggle Leave">${w.onLeave ? '✈️' : '🏖'}</button>
+          ${w.deviceRegistered ? `<button class="icon-btn" data-action="reset-device" data-id="${(typeof Sanitize!=='undefined'?Sanitize.attr(w.id):_esc(w.id))}" title="Reset Device">📱</button>` : ''}
+          <button class="icon-btn" data-action="qr" data-id="${(typeof Sanitize!=='undefined'?Sanitize.attr(w.id):_esc(w.id))}" title="Print QR">📷</button>
+          <button class="icon-btn delete" data-action="delete" data-id="${(typeof Sanitize!=='undefined'?Sanitize.attr(w.id):_esc(w.id))}" title="Delete">🗑️</button>
         </div>
       `;
       list.appendChild(card);
