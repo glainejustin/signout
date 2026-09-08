@@ -18,6 +18,7 @@ const DB = (() => {
     LOCATIONS:      'signout_locations',   // multi-site geofences
     LEAVE_REQUESTS: 'signout_leave_reqs',  // worker time-off requests
     OPEN_SHIFTS:    'signout_open_shifts', // shift bidding
+    ADMIN_LOCK:     'signout_admin_lock',  // { attempts, until }
   };
 
   // ── LEGACY MIGRATION: copy worktap_* keys → signout_* on first load (backward compat)
@@ -50,6 +51,32 @@ const DB = (() => {
     } catch {}
   })();
 
+  // PIN HASH MIGRATION: plain 4-digit -> 64-hex (lazy)
+  (function _migratePinHashes() {
+    try {
+      const raw = localStorage.getItem(KEYS.WORKERS);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        let dirty = false;
+        for (const w of arr) {
+          if (w.pin && typeof Crypto !== 'undefined' && Crypto.isLegacyPin && Crypto.isLegacyPin(w.pin)) {
+            w.pin = Crypto.fallbackHash(String(w.pin).trim());
+            dirty = true;
+          }
+        }
+        if (dirty) localStorage.setItem(KEYS.WORKERS, JSON.stringify(arr));
+      }
+      const sRaw = localStorage.getItem(KEYS.SETTINGS);
+      if (sRaw) {
+        const s = JSON.parse(sRaw);
+        if (s.adminPin && typeof Crypto !== 'undefined' && Crypto.isLegacyPin && Crypto.isLegacyPin(s.adminPin)) {
+          s.adminPin = Crypto.fallbackHash(String(s.adminPin).trim());
+          localStorage.setItem(KEYS.SETTINGS, JSON.stringify(s));
+        }
+      }
+    } catch {}
+  })();
+
   // ─────────────────────────────────────────
   // WORKERS
   // ─────────────────────────────────────────
@@ -62,12 +89,14 @@ const DB = (() => {
   function addWorker(name, role, username, pin, nfcId) {
     const _s = (typeof Sanitize !== 'undefined' ? Sanitize.strip : (v,n)=>String(v||'').trim().slice(0,n||120));
     const workers = getWorkers();
+    const _pinRaw = String(pin).trim().slice(0,6);
+    const _pinStored = (typeof Crypto !== 'undefined' && Crypto.fallbackHash) ? Crypto.fallbackHash(_pinRaw) : _pinRaw;
     const worker = {
       id:                'w_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
       name:              _s(name, 80),
       role:              _s(role, 60) || 'Worker',
       username:          _s(username, 40).toLowerCase(),
-      pin:               String(pin).trim().slice(0,6),
+      pin:               _pinStored,
       nfcId:             nfcId || '',
       clockedIn:         false,
       lastAction:        null,
@@ -93,9 +122,30 @@ const DB = (() => {
     const workers = getWorkers();
     const idx = workers.findIndex(w => w.id === id);
     if (idx === -1) return null;
-    workers[idx] = { ...workers[idx], ...updates };
+    const next = { ...updates };
+    if (next.pin != null && String(next.pin).trim()) {
+      const raw = String(next.pin).trim().slice(0,6);
+      if (typeof Crypto !== 'undefined' && Crypto.fallbackHash) {
+        const isHashed = Crypto.isHashed ? Crypto.isHashed(raw) : false;
+        next.pin = isHashed ? raw.toLowerCase() : Crypto.fallbackHash(raw);
+      } else {
+        next.pin = raw;
+      }
+    }
+    workers[idx] = { ...workers[idx], ...next };
     saveWorkers(workers);
     return workers[idx];
+  }
+  async function upgradeWorkerPinHash(workerId, plainPin) {
+    try {
+      if (typeof Crypto === 'undefined' || !Crypto.hashPin) return;
+      const hashed = await Crypto.hashPin(String(plainPin).trim());
+      const workers = getWorkers();
+      const idx = workers.findIndex(w => w.id === workerId);
+      if (idx === -1) return;
+      workers[idx].pin = hashed;
+      saveWorkers(workers);
+    } catch {}
   }
 
   function deleteWorker(id) { saveWorkers(getWorkers().filter(w => w.id !== id)); }
@@ -121,11 +171,26 @@ const DB = (() => {
     // Leave check
     if (w.onLeave) return { success: false, reason: 'leave', note: w.leaveNote };
 
-    // PIN check
-    if (w.pin !== String(pin).trim()) {
-      recordFailedAttempt(workerId);
-      const remaining = 3 - getFailedAttempts(workerId);
-      return { success: false, reason: 'pin', remaining: Math.max(0, remaining) };
+    // PIN check (hashed + legacy plain; upgrades to SHA-256 on success)
+    {
+      const _pinOk = (typeof Crypto !== 'undefined' && Crypto.verifyPin)
+        ? await Crypto.verifyPin(pin, w.pin)
+        : (String(w.pin).trim() === String(pin).trim());
+      if (!_pinOk) {
+        recordFailedAttempt(workerId);
+        const remaining = 3 - getFailedAttempts(workerId);
+        return { success: false, reason: 'pin', remaining: Math.max(0, remaining) };
+      }
+      try {
+        const _needsUpgrade = typeof Crypto !== 'undefined' && Crypto.isHashed && !Crypto.isHashed(String(w.pin).trim());
+        const _isFallback = w.pin && w.pin.length === 64 && typeof Crypto !== 'undefined' && Crypto.fallbackHash && Crypto.fallbackHash(String(pin).trim()) === String(w.pin).trim().toLowerCase();
+        if (_needsUpgrade || _isFallback) {
+          Crypto.hashPin(String(pin).trim()).then(h => {
+            const ws = getWorkers(); const i = ws.findIndex(x => x.id === workerId);
+            if (i !== -1) { ws[i].pin = h; saveWorkers(ws); }
+          }).catch(()=>{});
+        }
+      } catch {}
     }
 
     // Time window check
@@ -194,6 +259,41 @@ const DB = (() => {
     const all = getLockouts();
     delete all[workerId];
     saveLockouts(all);
+  }
+
+  // ADMIN LOCKOUT (5 attempts -> 15 min)
+  const ADMIN_LOCK_ATTEMPTS = 5;
+  const ADMIN_LOCK_MS       = 15 * 60 * 1000;
+  function getAdminLock() {
+    try { return JSON.parse(localStorage.getItem(KEYS.ADMIN_LOCK) || '{"attempts":0,"until":0}'); } catch { return {attempts:0,until:0}; }
+  }
+  function saveAdminLock(v) { localStorage.setItem(KEYS.ADMIN_LOCK, JSON.stringify(v)); }
+  function isAdminLocked() {
+    const l = getAdminLock();
+    if (l.until && Date.now() < l.until) return { locked: true, until: l.until, mins: Math.ceil((l.until - Date.now())/60000) };
+    return { locked: false, attempts: l.attempts||0 };
+  }
+  function recordAdminFail() {
+    const l = getAdminLock(); const n = (l.attempts||0)+1;
+    if (n >= ADMIN_LOCK_ATTEMPTS) saveAdminLock({ attempts: n, until: Date.now()+ADMIN_LOCK_MS });
+    else saveAdminLock({ attempts: n, until: 0 });
+  }
+  function clearAdminLock() { localStorage.removeItem(KEYS.ADMIN_LOCK); }
+  async function verifyAdminPin(inputPin) {
+    const s = getSettings();
+    const stored = s.adminPin;
+    if (!stored) return false;
+    if (typeof Crypto !== 'undefined' && Crypto.verifyPin) return await Crypto.verifyPin(inputPin, stored);
+    return String(stored).trim() === String(inputPin).trim();
+  }
+  async function setAdminPin(newPin) {
+    const raw = String(newPin).trim().slice(0,6);
+    let stored = raw;
+    try {
+      if (typeof Crypto !== 'undefined' && Crypto.hashPin) stored = await Crypto.hashPin(raw);
+      else if (typeof Crypto !== 'undefined' && Crypto.fallbackHash) stored = Crypto.fallbackHash(raw);
+    } catch { stored = raw; }
+    saveSettings({ adminPin: stored });
   }
 
   // ─────────────────────────────────────────
@@ -366,6 +466,29 @@ const DB = (() => {
     }));
   }
   function saveSettings(updates) {
+    if (updates.sheetsUrl !== undefined && updates.sheetsUrl) {
+      const u = String(updates.sheetsUrl).trim();
+      if (typeof Sanitize !== 'undefined' && Sanitize.isSheetsUrl && !Sanitize.isSheetsUrl(u)) {
+        console.warn('[SignOut] Blocked non-allow-listed Sheets URL:', u);
+        throw new Error('Sheets URL must be https://script.google.com / script.googleusercontent.com');
+      }
+      updates.sheetsUrl = u;
+    }
+    if (updates.webhookUrl !== undefined && updates.webhookUrl) {
+      const u = String(updates.webhookUrl).trim();
+      if (typeof Sanitize !== 'undefined' && Sanitize.isWebhookUrl && !Sanitize.isWebhookUrl(u)) {
+        console.warn('[SignOut] Blocked non-allow-listed webhook URL:', u);
+        throw new Error('Webhook URL must be https://hooks.slack.com, hooks.office.com, discord.com/api/webhooks, or api.telegram.org');
+      }
+      updates.webhookUrl = u;
+    }
+    if (updates.adminPin !== undefined && updates.adminPin) {
+      const raw = String(updates.adminPin).trim();
+      const isHashed = typeof Crypto !== 'undefined' && Crypto.isHashed && Crypto.isHashed(raw);
+      if (!isHashed && typeof Crypto !== 'undefined' && Crypto.fallbackHash) {
+        updates.adminPin = Crypto.fallbackHash(raw.slice(0,6));
+      }
+    }
     localStorage.setItem(KEYS.SETTINGS, JSON.stringify({ ...getSettings(), ...updates }));
   }
 
@@ -650,6 +773,14 @@ const DB = (() => {
     saveAuditLogs(logs);
     return entry;
   }
+  function exportAuditCsv() {
+    const logs = getAuditLogs();
+    const esc = v => '"' + String(v==null?'':v).replace(/"/g,'""') + '"';
+    const header = ['Timestamp','User','Action','Details'].map(esc).join(',');
+    const rows = logs.map(l => [esc(l.timestamp), esc(l.user), esc(l.action), esc(l.details)].join(','));
+    const csv = [header, ...rows].join('\n');
+    return '\uFEFF' + csv;
+  }
 
   // ─────────────────────────────────────────
   // MULTI-SITE LOCATION GEOFENCING
@@ -838,9 +969,11 @@ const DB = (() => {
     // Workers
     getWorkers, addWorker, updateWorker, deleteWorker,
     getWorkerById, getWorkerByNfcId, getWorkerByUsername,
-    authenticateWorker, resetWorkerDevice,
+    authenticateWorker, resetWorkerDevice, upgradeWorkerPinHash,
     // Lockout
     getLockout, clearFailedAttempts,
+    // Admin lockout
+    getAdminLock, isAdminLocked, recordAdminFail, clearAdminLock, verifyAdminPin, setAdminPin,
     // Leave
     setLeave,
     // Logs
@@ -860,7 +993,7 @@ const DB = (() => {
     // Swaps
     getSwaps, requestSwap, resolveSwap, getPendingSwaps,
     // Audit
-    getAuditLogs, addAuditLog,
+    getAuditLogs, addAuditLog, exportAuditCsv,
     // Multi-site
     getLocations, addLocation, deleteLocation,
     // Leave Requests

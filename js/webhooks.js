@@ -1,17 +1,18 @@
 /**
  * webhooks.js — Real-Time Webhook Alert Dispatcher
- * Dispatches automated JSON notifications to Slack, Microsoft Teams, or Discord webhooks.
+ * Dispatches to Slack / Teams / Discord / Telegram. Guarded by Sanitize allow-list.
  */
 
 const Webhooks = (() => {
 
-  /**
-   * Sends a payload to the configured webhook URL.
-   */
   async function sendAlert(title, message, details = {}) {
     const settings = DB.getSettings();
     const webhookUrl = settings.webhookUrl;
     if (!webhookUrl || !settings.webhooksEnabled) return;
+    if (typeof Sanitize !== 'undefined' && Sanitize.isWebhookUrl && !Sanitize.isWebhookUrl(webhookUrl)) {
+      console.warn('[SignOut] Blocked webhook to non-allow-listed host:', webhookUrl);
+      return;
+    }
 
     const payload = {
       text: `⏱ *SignOut Alert*: ${title}\n> ${message}`,
@@ -35,29 +36,20 @@ const Webhooks = (() => {
     }
   }
 
-  /**
-   * Test current webhook connection from settings UI.
-   */
   async function testConnection(url) {
     if (!url) return { success: false, message: 'Please enter a webhook URL.' };
+    if (typeof Sanitize !== 'undefined' && Sanitize.isWebhookUrl && !Sanitize.isWebhookUrl(url)) {
+      return { success: false, message: 'URL not allow-listed. Use hooks.slack.com, hooks.office.com, discord.com/api/webhooks, or api.telegram.org' };
+    }
     try {
-      const payload = {
-        text: '⏱ *SignOut*: Webhook connection test successful! ✅'
-      };
-      await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      const payload = { text: '⏱ *SignOut*: Webhook connection test successful! ✅' };
+      await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       return { success: true, message: 'Test message sent successfully!' };
     } catch (e) {
       return { success: false, message: 'Failed to send webhook: ' + e.message };
     }
   }
 
-  return {
-    sendAlert,
-    testConnection
-  };
+  return { sendAlert, testConnection };
 
 })();

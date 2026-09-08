@@ -53,8 +53,12 @@ Perfect for **restaurants, warehouses, retail, clinics, factories** — any team
 | **History** | Week view grouped by day with daily totals |
 
 ### 🛡️ Security
+- **Hashed PINs (SHA-256)** — worker + admin PINs stored as 64-hex hashes; plain 4-digit migration is automatic
+- **Admin lockout** — 5 wrong admin PINs → 15 min lock + audit trail
 - **Device fingerprint lock** — account bound to one phone after first login
-- **Brute-force lockout** — 3 wrong PINs → 10 min lock
+- **Brute-force lockout** — 3 wrong worker PINs → 10 min lock
+- **URL allow-list** — Sheets/webhooks only to `script.google.com`, `hooks.slack.com`, `discord.com`, `api.telegram.org`
+- **Audit CSV export** — `Admin → Audit → Export CSV` + `SECURITY.md` threat model
 - **Shift time window** — only clock in during scheduled hours (±30 min)
 - **Allowed days guard** — blocks clock-in on non-scheduled days
 - **Auto-logout** — configurable inactivity timeout (1–60 min)
@@ -95,7 +99,7 @@ Perfect for **restaurants, warehouses, retail, clinics, factories** — any team
 - **PWA** — installs to home screen, works 100% offline, auto-syncs when back online
 - **Kiosk Mode** — shared tablet at entrance with live clock, worker select + PIN pad
 - **Capacitor Android** — `com.signout.attendance`, splash screen included
-- **Service Worker** — `signout-v1` cache, offline-first fetch strategy
+- **Service Worker** — `signout-v3` cache, offline-first fetch strategy
 
 ---
 
@@ -106,6 +110,18 @@ Perfect for **restaurants, warehouses, retail, clinics, factories** — any team
 | Login | Worker Today | Admin Logs | Rota |
 |---|---|---|---|
 | ![Login](https://via.placeholder.com/220x420/1a73e8/ffffff?text=Login) | ![Today](https://via.placeholder.com/220x420/009624/ffffff?text=Today) | ![Logs](https://via.placeholder.com/220x420/e65100/ffffff?text=Logs) | ![Rota](https://via.placeholder.com/220x420/6c47ff/ffffff?text=Rota) |
+
+---
+
+## 🎬 Demo
+
+> 📸 **Live:** **https://glainejustin.github.io/signout/** — tap *Install* banner for home-screen PWA.
+
+<p align="center">
+  <img src="icons/icon-512.png" width="220" alt="SignOut — tap to clock in" />
+</p>
+
+> Add a 3-second screen recording (`docs/demo.gif`, <3 MB) and replace the image above with `![Demo](docs/demo.gif)` — it auto-plays on GitHub.
 
 ---
 
@@ -238,6 +254,7 @@ signout/
 │   ├── audio.js            # Web Audio chimes
 │   ├── face.js             # Lightweight face-presence check
 │   ├── device.js           # Fingerprint + short ID
+│   ├── pwa-install.js      # beforeinstallprompt pill
 │   └── pdf.js              # PDF export helper
 └── icons/
     ├── icon-192.png
@@ -253,7 +270,7 @@ All data lives in `localStorage` (no server). Keys:
 ```
 signout_workers, signout_logs, signout_settings, signout_lockouts,
 signout_rotas, signout_shifts, signout_swaps, signout_audit,
-signout_locations, signout_leave_reqs, signout_open_shifts
+signout_locations, signout_leave_reqs, signout_open_shifts, signout_admin_lock
 ```
 
 - **Admin → Settings → Database → Export Backup (JSON)** — downloads everything

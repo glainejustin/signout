@@ -1,12 +1,18 @@
 {
-  "name": "SignOut - NFC Attendance",
+  "name": "SignOut — NFC Attendance",
   "short_name": "SignOut",
-  "description": "NFC-based worker sign in/out attendance system",
+  "description": "Tap to clock in. NFC + GPS + offline PWA workforce attendance by glainejustin.",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "browser"],
   "orientation": "portrait",
   "background_color": "#4f46e5",
   "theme_color": "#4f46e5",
+  "id": "/signout/",
+  "launch_handler": { "client_mode": "navigate-existing" },
+  "handle_links": "preferred",
+  "categories": ["business", "productivity"],
   "icons": [
     {
       "src": "icons/icon-192.png",
@@ -21,6 +27,32 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["business", "productivity"],
-  "screenshots": []
+  "screenshots": [
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "SignOut — Tap to clock in"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "SignOut — Admin dashboard"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Clock IN/OUT",
+      "url": "./index.html",
+      "description": "Open SignOut to clock in"
+    },
+    {
+      "name": "Kiosk Mode",
+      "url": "./index.html#kiosk",
+      "description": "Shared tablet kiosk"
+    }
+  ]
 }

@@ -81,6 +81,10 @@ const Admin = (() => {
     document.getElementById('btnExportJSON').addEventListener('click', exportJSONBackup);
     document.getElementById('btnImportJSON').addEventListener('change', importJSONBackup);
 
+    // Audit CSV export
+    const _btnAuditCsv = document.getElementById('btnExportAuditCSV');
+    if (_btnAuditCsv) _btnAuditCsv.addEventListener('click', exportAuditCSV);
+
     // Multi-site location
     document.getElementById('btnOpenAddLocation').addEventListener('click', () => {
       document.getElementById('locationModal').classList.remove('hidden');
@@ -113,20 +117,44 @@ const Admin = (() => {
     document.getElementById('btnExportCSV').classList.add('hidden');
   }
 
-  function checkPin() {
-    const input = document.getElementById('adminPinInput').value;
-    if (input === DB.getSettings().adminPin) {
+  async function checkPin() {
+    const input = document.getElementById('adminPinInput').value.trim();
+    const pinErr = document.getElementById('pinError');
+    const lock = DB.isAdminLocked ? DB.isAdminLocked() : { locked: false };
+    if (lock.locked) {
+      pinErr.textContent = `Locked. Try again in ${lock.mins} min.`;
+      document.getElementById('adminPinInput').value = '';
+      return;
+    }
+    const ok = DB.verifyAdminPin ? await DB.verifyAdminPin(input) : (input === DB.getSettings().adminPin);
+    if (ok) {
+      if (DB.clearAdminLock) DB.clearAdminLock();
+      // Opportunistically upgrade admin PIN to SHA-256 if still fallback
+      try {
+        const cur = DB.getSettings().adminPin;
+        const isHashed = typeof Crypto !== 'undefined' && Crypto.isHashed && Crypto.isHashed(String(cur).trim());
+        const isFallback = cur && cur.length === 64 && typeof Crypto !== 'undefined' && Crypto.fallbackHash && Crypto.fallbackHash(input) === String(cur).trim().toLowerCase();
+        if (!isHashed || isFallback) {
+          if (typeof Crypto !== 'undefined' && Crypto.hashPin) {
+            Crypto.hashPin(input).then(h => { try { DB.saveSettings({ adminPin: h }); } catch{} }).catch(()=>{});
+          }
+        }
+      } catch {}
       document.getElementById('adminPinGate').classList.add('hidden');
       document.getElementById('adminContent').classList.remove('hidden');
-      document.getElementById('pinError').textContent = '';
+      pinErr.textContent = '';
       document.getElementById('btnExportCSV').classList.remove('hidden');
       _refreshSettings();
       Rota.init();
       switchTab('logs');
       refreshStats();
       Workers.render();
+      try { DB.addAuditLog('ADMIN_LOGIN', 'Admin unlocked dashboard'); } catch {}
     } else {
-      document.getElementById('pinError').textContent = 'Incorrect PIN. Try again.';
+      if (DB.recordAdminFail) DB.recordAdminFail();
+      const l2 = DB.isAdminLocked ? DB.isAdminLocked() : { locked:false };
+      if (l2.locked) pinErr.textContent = `Too many attempts. Locked for ${l2.mins} min.`;
+      else pinErr.textContent = 'Incorrect PIN. Try again.';
       document.getElementById('adminPinInput').value  = '';
     }
   }
@@ -256,7 +284,7 @@ const Admin = (() => {
   async function syncToSheets() {
     const url = document.getElementById('sheetsWebhookUrl').value.trim();
     if (!url) { App.showToast('Paste your Apps Script URL first.'); return; }
-    DB.saveSettings({ sheetsUrl: url });
+    try { DB.saveSettings({ sheetsUrl: url }); } catch(e) { App.showToast(e.message); return; }
     const unsynced = DB.getLogs().filter(l => !l.synced);
     if (!unsynced.length) { App.showToast('All synced!'); return; }
     const el = document.getElementById('sheetsStatus');
@@ -326,11 +354,16 @@ const Admin = (() => {
 
   // ── ADMIN PIN ─────────────────────────────────────────────
 
-  function saveAdminPin() {
+  async function saveAdminPin() {
     const p = document.getElementById('newAdminPin').value.trim();
     if (!p || p.length < 4 || !/^\d+$/.test(p)) { App.showToast('PIN must be 4+ digits.'); return; }
-    DB.saveSettings({ adminPin: p });
+    try {
+      if (DB.setAdminPin) await DB.setAdminPin(p);
+      else DB.saveSettings({ adminPin: p });
+    } catch(e) { App.showToast(e.message || 'Failed to save PIN'); return; }
     document.getElementById('newAdminPin').value = '';
+    if (DB.clearAdminLock) DB.clearAdminLock();
+    try { DB.addAuditLog('CHANGE_ADMIN_PIN', 'Admin PIN changed'); } catch {}
     App.showToast('Admin PIN updated!');
   }
 
@@ -481,7 +514,7 @@ const Admin = (() => {
   function saveWebhookSettings() {
     const enabled = document.getElementById('webhookToggle').checked;
     const url = document.getElementById('webhookUrlInput').value.trim();
-    DB.saveSettings({ webhooksEnabled: enabled, webhookUrl: url });
+    try { DB.saveSettings({ webhooksEnabled: enabled, webhookUrl: url }); } catch(e) { App.showToast(e.message); return; }
     App.showToast('Webhook settings saved!');
   }
 
@@ -497,6 +530,15 @@ const Admin = (() => {
     const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `signout_backup_${DB.localDateStr()}.json` });
     a.click(); URL.revokeObjectURL(a.href);
     App.showToast('Full database backup exported!');
+  }
+
+  function exportAuditCSV() {
+    const csv = DB.exportAuditCsv ? DB.exportAuditCsv() : '';
+    if (!csv || csv.split('\n').length <= 1) { App.showToast('No audit logs to export.'); return; }
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `signout_audit_${DB.localDateStr()}.csv` });
+    a.click(); URL.revokeObjectURL(a.href);
+    App.showToast('Audit CSV exported!');
   }
 
   function importJSONBackup(e) {
@@ -541,7 +583,7 @@ const Admin = (() => {
   function _esc(str) { const d=document.createElement('div'); d.textContent=str||''; return d.innerHTML; }
 
   return {
-    init, checkPin, switchTab, refreshStats, renderWeeklySummary,
+    init, checkPin, switchTab, refreshStats, renderWeeklySummary, exportAuditCSV,
     renderAnalyticsCharts, renderLeaveApprovals, resolveLeave, renderLocations, deleteLoc, renderAuditLogs
   };
 

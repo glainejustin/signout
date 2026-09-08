@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="description" content="SignOut — Professional NFC workforce attendance. Tap to clock in, GPS geofence, rota & Sheets sync. By glainejustin." />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://api.qrserver.com https://github.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://hooks.slack.com https://hooks.office.com https://discord.com; worker-src 'self'; manifest-src 'self'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://api.qrserver.com https://github.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://hooks.slack.com https://hooks.office.com https://discord.com https://discordapp.com https://api.telegram.org; worker-src 'self'; manifest-src 'self'" />
   <title>SignOut — Workforce Attendance</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -361,7 +361,10 @@
     <div class="tab-panel hidden" id="tab-audit">
       <div class="summary-header">
         <h3>Admin Audit Trail</h3>
-        <span class="summary-range">Last 500 events</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="summary-range">Last 500 events</span>
+          <button class="btn btn-in btn-sm" id="btnExportAuditCSV">Export CSV</button>
+        </div>
       </div>
       <div class="log-table-wrap">
         <table class="log-table">
@@ -817,6 +820,8 @@
 <script src="js/rota.js"></script>
 <script src="js/admin.js"></script>
 <script src="js/app.js"></script>
+<script src="js/pwa-install.js"></script>
+<script>try{ if(typeof PWAInstall!=='undefined') PWAInstall.init(); }catch(e){}</script>
 <script src="js/sw-register.js"></script>
 </body>
 </html>

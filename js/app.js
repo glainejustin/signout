@@ -37,6 +37,7 @@ const App = (() => {
     // Notify watchers
     Notify.startForgotClockOutWatcher();
     Notify.scheduleWhatsAppReport();
+    try { if (typeof PWAInstall !== 'undefined') PWAInstall.init(); } catch {}
   }
 
   // ── LOGIN ─────────────────────────────────────────────────
@@ -611,9 +612,14 @@ const App = (() => {
       // Automatically toggle clock state
       const fresh = DB.getWorkerById(result.worker.id);
       await _doClock(fresh.clockedIn ? 'OUT' : 'IN');
+    } else if (result.reason === 'locked') {
+      AudioFX.playError();
+      errEl.textContent = `🔒 Locked. Try in ${result.mins} min.`;
+      errEl.classList.remove('hidden');
     } else {
       AudioFX.playError();
-      errEl.textContent = '❌ Invalid PIN.';
+      const remain = result.remaining != null ? ` (${result.remaining} left)` : '';
+      errEl.textContent = '❌ Invalid PIN.' + remain;
       errEl.classList.remove('hidden');
     }
   }
