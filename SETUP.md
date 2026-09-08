@@ -18,7 +18,7 @@
 ## Files in This Project
 
 ```
-SignInOut/
+signout/
 ├── index.html              ← Main app
 ├── manifest.json           ← PWA install config
 ├── service-worker.js       ← Offline caching
@@ -52,12 +52,12 @@ Web NFC only works when served over **HTTPS**. Pick one free option:
 
 ### Option B — Netlify (Drag & Drop, Free)
 1. Go to [netlify.com](https://netlify.com) and sign up free
-2. Drag the entire `SignInOut` folder onto the Netlify deploy area
+2. Drag the entire `signout` folder onto the Netlify deploy area
 3. You get a live HTTPS URL instantly
 
 ### Option C — Local Network (Android only, no internet needed)
 1. Install **Node.js** on your computer
-2. Run: `npx serve d:\SignInOut --ssl`
+2. Run: `npx serve D:\signout --ssl`
 3. Open the HTTPS URL on any phone on the same WiFi
 
 ---
@@ -167,3 +167,7 @@ Logs are pushed to 3 tabs automatically:
 ---
 
 *SignOut v1.0 — Built with Web NFC API + PWA*
+
+---
+
+<p align="center">Made with ❤️ by **glainejustin** — happy clocking! 💖</p>

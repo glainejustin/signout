@@ -15,6 +15,7 @@
   <img src="https://img.shields.io/badge/NFC-Web%20API-e65100?style=flat-square" alt="Web NFC" />
   <img src="https://img.shields.io/badge/Capacitor-Android-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Capacitor" />
   <img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="License MIT" />
+  <img src="https://img.shields.io/badge/Made%20with%20%E2%9D%A4%EF%B8%8F%20by-glainejustin-ff69b4?style=flat-square" alt="Made with love by glainejustin" />
 </p>
 
 <p align="center">
@@ -306,10 +307,14 @@ git push -u origin feat/my-feature
 
 ## 📄 License
 
-MIT — free for personal and commercial use. See [LICENSE](LICENSE) if present.
+MIT — free for personal and commercial use by **glainejustin** & contributors. See [LICENSE](LICENSE).
 
 ---
 
 <p align="center">
-  Built with ❤️ — Web NFC + PWA + LocalStorage — <strong>SignOut v1.0</strong>
+  Made with ❤️ by <a href="https://github.com/glainejustin"><strong>glainejustin</strong></a> — Web NFC + PWA + LocalStorage — <strong>SignOut v1.0</strong>
+</p>
+
+<p align="center">
+  <sub>💖 Crafted with love for teams who clock in with a tap</sub>
 </p>

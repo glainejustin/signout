@@ -1,7 +1,7 @@
 {
   "name": "signout",
   "version": "1.0.0",
-  "description": "SignOut — NFC worker attendance PWA with rota, GPS geofence & Google Sheets sync",
+  "description": "SignOut \u2014 NFC worker attendance PWA with rota, GPS geofence & Google Sheets sync",
   "main": "index.html",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -9,8 +9,17 @@
     "sync": "npx cap sync",
     "android": "npx cap open android"
   },
-  "keywords": ["pwa","nfc","attendance","workforce","geofence","google-sheets","capacitor","offline-first"],
-  "author": "glainejustin",
+  "keywords": [
+    "pwa",
+    "nfc",
+    "attendance",
+    "workforce",
+    "geofence",
+    "google-sheets",
+    "capacitor",
+    "offline-first"
+  ],
+  "author": "glainejustin <https://github.com/glainejustin> <glaine100justin@gmail.com>",
   "license": "MIT",
   "type": "commonjs",
   "dependencies": {
