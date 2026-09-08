@@ -14,6 +14,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
   <link rel="manifest" href="manifest.json" />
+  <script src="js/theme.js"></script>
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
@@ -72,6 +73,13 @@
       <button class="admin-link-btn" id="goAdminLogin">Admin</button>
       <button class="admin-link-btn kiosk-link-btn" id="launchKioskBtn">Kiosk Mode</button>
     </div>
+    <div class="login-theme-wrap">
+      <div class="theme-segment" role="group" aria-label="Theme">
+        <button class="theme-seg-btn" data-theme-val="light" aria-pressed="false">☀ Light</button>
+        <button class="theme-seg-btn" data-theme-val="dark" aria-pressed="false">◐ Dark</button>
+        <button class="theme-seg-btn" data-theme-val="system" aria-pressed="false">◎ Auto</button>
+      </div>
+    </div>
     <p style="font-size:11px; color:rgba(255,255,255,.6); font-weight:500; letter-spacing:.02em; margin-top:2px; text-align:center;">Made with ❤️ by <a href="https://github.com/glainejustin" style="color:rgba(255,255,255,.85); text-decoration:none; border-bottom:1px solid rgba(255,255,255,.2)">glainejustin</a> · Offline-first · Secure</p>
   </div>
 </div>
@@ -86,7 +94,10 @@
         <div class="wdh-role" id="wdhRole"></div>
       </div>
     </div>
-    <button class="logout-btn" id="workerLogout">Logout</button>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <button id="workerThemeToggle" class="theme-pill" type="button" aria-label="Toggle theme">◎ Auto</button>
+      <button class="logout-btn" id="workerLogout">Logout</button>
+    </div>
   </div>
 
   <!-- Worker tabs -->
@@ -182,6 +193,7 @@
   <div class="page-header">
     <button class="back-btn" id="adminBack">← Back</button>
     <h2>SignOut Admin</h2>
+    <button id="adminThemeToggle" class="theme-pill" type="button" aria-label="Toggle theme" title="Theme">◎</button>
     <button class="header-action-btn hidden" id="btnExportCSV">Export CSV</button>
   </div>
 
@@ -369,6 +381,17 @@
     <div class="tab-panel hidden" id="tab-settings">
 
       <div class="settings-section">
+        <h3>Appearance</h3>
+        <p class="settings-desc">Choose your look — light, dark, or follow your system. Saves instantly.</p>
+        <div class="theme-segment" role="group" aria-label="Appearance theme">
+          <button class="theme-seg-btn" data-theme-val="light" aria-pressed="false">☀ Light</button>
+          <button class="theme-seg-btn" data-theme-val="dark" aria-pressed="false">◐ Dark</button>
+          <button class="theme-seg-btn" data-theme-val="system" aria-pressed="false">◎ Auto</button>
+        </div>
+        <p id="themeStatusHint" style="font-size:11.5px; color:var(--muted); font-weight:600; margin-top:8px;"></p>
+      </div>
+
+      <div class="settings-section">
         <h3>Google Sheets Sync</h3>
         <p class="settings-desc">Push every clock event to Sheets — auto-creates Attendance / Summary / Workers tabs.</p>
         <input type="text" id="sheetsWebhookUrl" placeholder="Paste Apps Script Web App URL..." class="sheets-input" autocomplete="off" />
@@ -489,7 +512,10 @@
       <div class="logo-icon" style="width:36px; height:36px; font-size:16px; border-radius:10px;">◈</div>
       <h2 class="app-name" style="font-size:16px; color:#fff;">SignOut Kiosk</h2>
     </div>
-    <button class="btn btn-out btn-sm" id="btnExitKiosk">Exit</button>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <button id="kioskThemeToggle" class="theme-pill" type="button" aria-label="Toggle theme" title="Theme">◎</button>
+      <button class="btn btn-out btn-sm" id="btnExitKiosk">Exit</button>
+    </div>
   </div>
   <div class="kiosk-body">
     <div class="kiosk-clock-card">

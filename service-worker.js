@@ -1,8 +1,8 @@
-const CACHE = 'signout-v1';
+const CACHE = 'signout-v2';
 const ASSETS = [
   './', './index.html', './manifest.json',
   './css/styles.css',
-  './js/security.js', './js/sw-register.js', './js/device.js', './js/gps.js', './js/db.js', './js/nfc.js',
+  './js/theme.js', './js/security.js', './js/sw-register.js', './js/device.js', './js/gps.js', './js/db.js', './js/nfc.js',
   './js/qr.js', './js/selfie.js', './js/notify.js',
   './js/workers.js', './js/logs.js', './js/rota.js', './js/admin.js', './js/app.js',
 ];
