@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1a73e8" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>WorkTap - Sign In/Out</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════ LOGIN ═══════ -->
+<div id="page-login" class="page active">
+  <div class="login-bg"></div>
+  <div class="login-content">
+    <div class="logo-wrap">
+      <div class="logo-icon">⏱</div>
+      <h1 class="app-name">WorkTap</h1>
+      <p class="app-tagline">Worker Attendance System</p>
+    </div>
+
+    <div class="login-card">
+      <h2 class="login-title">Who are you?</h2>
+
+      <div id="loginStep1">
+        <input type="text" id="workerSearch" class="login-search" placeholder="🔍 Search your name..." autocomplete="off" />
+        <div id="workerPickList" class="worker-pick-list"></div>
+        <button class="qr-scan-btn" id="btnQrLogin">📷 Scan QR Badge</button>
+      </div>
+
+      <div id="loginStep2" class="hidden">
+        <div class="selected-worker-badge" id="selectedWorkerBadge"></div>
+        <p class="pin-prompt">Enter your PIN</p>
+        <div class="pin-dots" id="pinDots">
+          <span></span><span></span><span></span><span></span>
+        </div>
+        <div class="numpad">
+          <button class="num-btn" data-n="1">1</button>
+          <button class="num-btn" data-n="2">2</button>
+          <button class="num-btn" data-n="3">3</button>
+          <button class="num-btn" data-n="4">4</button>
+          <button class="num-btn" data-n="5">5</button>
+          <button class="num-btn" data-n="6">6</button>
+          <button class="num-btn" data-n="7">7</button>
+          <button class="num-btn" data-n="8">8</button>
+          <button class="num-btn" data-n="9">9</button>
+          <button class="num-btn back-btn-num" data-n="back">⌫</button>
+          <button class="num-btn" data-n="0">0</button>
+          <button class="num-btn ok-btn" data-n="ok">OK</button>
+        </div>
+        <p class="pin-error hidden" id="loginPinError"></p>
+        <button class="change-worker-btn" id="changeWorkerBtn">← Change</button>
+      </div>
+    </div>
+
+    <div class="login-action-row">
+      <button class="admin-link-btn" id="goAdminLogin">⚙ Admin</button>
+      <button class="admin-link-btn kiosk-link-btn" id="launchKioskBtn">📱 Kiosk Mode</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ WORKER DASH ═ -->
+<div id="page-worker" class="page">
+  <div class="worker-dash-header">
+    <div class="wdh-info">
+      <div class="wdh-avatar" id="wdhAvatar"></div>
+      <div>
+        <div class="wdh-name" id="wdhName"></div>
+        <div class="wdh-role" id="wdhRole"></div>
+      </div>
+    </div>
+    <button class="logout-btn" id="workerLogout">Logout</button>
+  </div>
+
+  <!-- Worker tabs -->
+  <div class="worker-tabs">
+    <button class="worker-tab active" data-tab="today">📋 Today</button>
+    <button class="worker-tab" data-tab="schedule">📅 My Schedule</button>
+    <button class="worker-tab" data-tab="history">🕐 History</button>
+  </div>
+
+  <!-- TAB: TODAY -->
+  <div id="workerTabToday" class="worker-dash-body">
+    <div class="status-card" id="workerStatusCard">
+      <div class="status-icon" id="workerStatusIcon">🔴</div>
+      <div class="status-label" id="workerStatusLabel">Currently OUT</div>
+      <div class="status-since" id="workerStatusSince"></div>
+    </div>
+
+    <div class="clock-btns">
+      <button class="clock-btn clock-in-btn" id="btnClockIn">
+        <span class="clock-btn-icon">✅</span>
+        <span class="clock-btn-label">Clock IN</span>
+      </button>
+      <button class="clock-btn clock-out-btn" id="btnClockOut">
+        <span class="clock-btn-icon">👋</span>
+        <span class="clock-btn-label">Clock OUT</span>
+      </button>
+    </div>
+
+    <div class="break-btns">
+      <button class="break-btn break-start-btn" id="btnBreakStart">
+        <span class="clock-btn-icon">☕</span>
+        <span class="clock-btn-label">Start Break</span>
+      </button>
+      <button class="break-btn break-end-btn" id="btnBreakEnd">
+        <span class="clock-btn-icon">▶</span>
+        <span class="clock-btn-label">Resume Work</span>
+      </button>
+    </div>
+
+    <div class="tap-area-small">
+      <div class="tap-ring-small"></div>
+      <div class="tap-ring-small ring2s"></div>
+      <span class="tap-icon-small">📱</span>
+      <p class="tap-label-small">Or tap NFC tag</p>
+    </div>
+
+    <div class="my-log-section">
+      <h3 class="my-log-title">My Log Today</h3>
+      <div id="myLogList" class="my-log-list"></div>
+      <div class="my-hours-row">
+        <span class="my-hours-label">Total hours today:</span>
+        <span class="my-hours-val" id="myHoursToday">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: HISTORY -->
+  <!-- TAB: MY SCHEDULE -->
+  <div id="workerTabSchedule" class="worker-dash-body hidden">
+    <div class="schedule-header">
+      <h3>My Schedule</h3>
+      <div class="schedule-hdr-actions">
+        <button class="btn btn-in btn-sm" id="btnOpenLeaveModal">🏖 Request Leave</button>
+        <span class="schedule-week" id="workerScheduleWeek"></span>
+      </div>
+    </div>
+    <div id="workerScheduleList" class="worker-schedule-list"></div>
+    <div class="open-shifts-section">
+      <h4>Available Open Shifts</h4>
+      <div id="openShiftWorkerList" class="open-shift-list"><p class="no-log">No open shifts posted.</p></div>
+    </div>
+    <div class="my-hours-row">
+      <span class="my-hours-label" id="workerScheduleHours">Scheduled this week: —</span>
+    </div>
+  </div>
+
+  <!-- TAB: HISTORY -->
+  <div id="workerTabHistory" class="worker-dash-body hidden">
+    <div class="history-header">
+      <h3>This Week</h3>
+      <span class="history-range" id="historyDateRange"></span>
+    </div>
+    <div id="historyLogList" class="history-log-list"></div>
+    <div class="my-hours-row">
+      <span class="my-hours-label" id="historyWeekTotal">Week total: —</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ ADMIN ═══════ -->
+<div id="page-admin" class="page">
+  <div class="page-header">
+    <button class="back-btn" id="adminBack">← Back</button>
+    <h2>Admin</h2>
+    <button class="header-action-btn hidden" id="btnExportCSV">⬇ CSV</button>
+  </div>
+
+  <div class="admin-pin-gate" id="adminPinGate">
+    <div class="pin-box">
+      <p>Admin PIN</p>
+      <input type="password" id="adminPinInput" maxlength="6" placeholder="••••" class="pin-input" />
+      <button class="btn btn-in" id="adminPinSubmit">Unlock</button>
+      <p class="pin-error" id="pinError"></p>
+    </div>
+  </div>
+
+  <div class="admin-content hidden" id="adminContent">
+    <div class="admin-tabs">
+      <button class="admin-tab active" data-tab="logs">📋 Logs</button>
+      <button class="admin-tab" data-tab="rota">📅 Rota</button>
+      <button class="admin-tab" data-tab="summary">📊 Summary</button>
+      <button class="admin-tab" data-tab="analytics">📈 Analytics</button>
+      <button class="admin-tab" data-tab="leave">🏖 Leave</button>
+      <button class="admin-tab" data-tab="locations">🏢 Sites</button>
+      <button class="admin-tab" data-tab="audit">📜 Audit</button>
+      <button class="admin-tab" data-tab="workers">👷 Workers</button>
+      <button class="admin-tab" data-tab="settings">⚙ Settings</button>
+    </div>
+
+    <!-- TAB: LOGS -->
+    <div class="tab-panel active" id="tab-logs">
+      <div class="stats-row">
+        <div class="stat-card"><span class="stat-num" id="statTotalWorkers">0</span><span class="stat-label">Workers</span></div>
+        <div class="stat-card"><span class="stat-num" id="statClockedIn">0</span><span class="stat-label">Clocked In</span></div>
+        <div class="stat-card"><span class="stat-num" id="statTodayLogs">0</span><span class="stat-label">Today</span></div>
+        <div class="stat-card"><span class="stat-num" id="statOnLeave">0</span><span class="stat-label">On Leave</span></div>
+      </div>
+      <div class="filter-row">
+        <select id="filterWorker" class="filter-select"><option value="">All Workers</option></select>
+        <input type="date" id="filterDate" class="filter-date" />
+        <button class="btn-clear" id="clearFilter">Clear</button>
+      </div>
+      <div class="log-table-wrap">
+        <table class="log-table">
+          <thead><tr><th>Worker</th><th>Action</th><th>Date</th><th>Time</th><th>Hours</th><th>Photo</th></tr></thead>
+          <tbody id="logTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB: ROTA -->
+    <div class="tab-panel hidden" id="tab-rota">
+
+      <!-- Week nav + controls -->
+      <div class="rota-toolbar">
+        <div class="rota-week-nav">
+          <button class="rota-nav-btn" id="rotaPrevWeek">‹</button>
+          <span class="rota-week-label" id="rotaWeekLabel"></span>
+          <button class="rota-nav-btn" id="rotaNextWeek">›</button>
+        </div>
+        <button class="rota-today-btn" id="rotaThisWeek">Today</button>
+      </div>
+
+      <div class="rota-actions-row">
+        <select id="rotaTplSelect" class="rota-tpl-select"></select>
+        <button class="btn btn-in rota-action-btn" id="rotaLoadTpl">Load</button>
+        <button class="btn btn-in rota-action-btn" id="rotaSaveTpl">💾 Save Template</button>
+        <button class="btn btn-in rota-action-btn" id="rotaCopyWeek">📋 Copy→Next</button>
+        <button class="btn btn-in rota-action-btn" id="rotaExport">⬇ CSV</button>
+        <button class="rota-swaps-btn" id="rotaSwapsPending">🔄 Swaps</button>
+      </div>
+
+      <!-- Shift legend + editor -->
+      <div class="rota-shift-section">
+        <div class="rota-shift-header">
+          <span class="rota-shift-title">Shift Types</span>
+          <button class="add-shift-btn" id="addShiftBtn">+ Add Shift</button>
+        </div>
+        <div id="shiftLegend" class="shift-legend"></div>
+      </div>
+
+      <!-- Grid -->
+      <div id="rotaGridContainer" class="rota-grid-container"></div>
+
+    </div>
+
+    <!-- TAB: SUMMARY -->
+    <div class="tab-panel hidden" id="tab-summary">
+      <div class="summary-header">
+        <h3>Weekly Summary</h3>
+        <span class="summary-range" id="summaryDateRange"></span>
+      </div>
+      <div class="export-range-section">
+        <h4>Export by Range</h4>
+        <div class="export-range-row">
+          <input type="date" id="exportFrom" class="filter-date" />
+          <span>to</span>
+          <input type="date" id="exportTo" class="filter-date" />
+          <button class="btn btn-in" id="exportRangeBtn">Export</button>
+        </div>
+        <div class="export-quick-row">
+          <button class="btn btn-in" id="exportWeekBtn">⬇ This Week</button>
+          <button class="btn btn-in" id="exportMonthBtn">⬇ This Month</button>
+        </div>
+      </div>
+      <div class="log-table-wrap">
+        <table class="log-table">
+          <thead><tr><th>Worker</th><th>Flags</th><th>Hours</th><th>Status</th></tr></thead>
+          <tbody id="summaryTableBody"></tbody>
+        </table>
+      </div>
+
+      <!-- Rota vs Actual -->
+      <div class="summary-header" style="margin-top:20px;">
+        <h3>Rota vs Actual</h3>
+        <span class="summary-range">Scheduled vs worked this week</span>
+      </div>
+      <div class="log-table-wrap">
+        <table class="log-table">
+          <thead><tr><th>Worker</th><th>Scheduled</th><th>Actual</th><th>Diff</th><th>No-shows</th><th>Late</th></tr></thead>
+          <tbody id="rotaVsActualBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB: ANALYTICS -->
+    <div class="tab-panel hidden" id="tab-analytics">
+      <div class="summary-header">
+        <h3>Attendance & Labor Analytics</h3>
+        <span class="summary-range">Visual trends & metrics</span>
+      </div>
+      <div class="analytics-grid">
+        <div class="analytics-card">
+          <h4>Weekly Hours Distribution</h4>
+          <div id="chartHoursContainer" class="svg-chart-box"></div>
+        </div>
+        <div class="analytics-card">
+          <h4>Punctuality & Tardiness Breakdown</h4>
+          <div id="chartPunctualityContainer" class="svg-chart-box"></div>
+        </div>
+      </div>
+      <div class="analytics-card" style="margin-top:16px;">
+        <h4>Hourly Clock-In Heatmap</h4>
+        <div id="chartHeatmapContainer" class="svg-chart-box"></div>
+      </div>
+    </div>
+
+    <!-- TAB: LEAVE APPROVALS -->
+    <div class="tab-panel hidden" id="tab-leave">
+      <div class="summary-header">
+        <h3>Time-Off & Leave Requests</h3>
+        <span class="summary-range">Pending worker PTO / Sick requests</span>
+      </div>
+      <div id="leaveRequestAdminList" class="leave-admin-list"></div>
+    </div>
+
+    <!-- TAB: LOCATIONS -->
+    <div class="tab-panel hidden" id="tab-locations">
+      <div class="summary-header">
+        <h3>Multi-Site Workplace Geofences</h3>
+        <button class="btn btn-in btn-sm" id="btnOpenAddLocation">+ Add Site</button>
+      </div>
+      <div id="locationList" class="location-list"></div>
+    </div>
+
+    <!-- TAB: AUDIT LOG -->
+    <div class="tab-panel hidden" id="tab-audit">
+      <div class="summary-header">
+        <h3>Admin Audit Trail</h3>
+        <span class="summary-range">System compliance log</span>
+      </div>
+      <div class="log-table-wrap">
+        <table class="log-table">
+          <thead><tr><th>Date/Time</th><th>User</th><th>Action</th><th>Details</th></tr></thead>
+          <tbody id="auditTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="tab-panel hidden" id="tab-workers">
+      <div class="workers-toolbar">
+        <button class="btn btn-in" id="openAddWorker">+ Add Worker</button>
+      </div>
+      <div class="worker-list" id="workerList"></div>
+    </div>
+
+    <!-- TAB: SETTINGS -->
+    <div class="tab-panel hidden" id="tab-settings">
+
+      <div class="settings-section">
+        <h3>Google Sheets Sync</h3>
+        <input type="text" id="sheetsWebhookUrl" placeholder="Paste Apps Script URL..." class="sheets-input" />
+        <button class="btn btn-in" id="btnSyncSheets">Sync Now</button>
+        <p class="sheets-status" id="sheetsStatus"></p>
+        <a href="#" id="sheetsGuideLink" class="guide-link">How to set up Google Sheets →</a>
+      </div>
+
+      <div class="settings-section">
+        <h3>📍 GPS Location Lock</h3>
+        <p class="settings-desc">Workers must be physically at your workplace to clock in/out.</p>
+        <div class="toggle-row">
+          <label class="toggle-label">Enable GPS Lock</label>
+          <label class="toggle-switch"><input type="checkbox" id="gpsToggle" /><span class="toggle-slider"></span></label>
+        </div>
+        <div id="gpsConfig" class="gps-config hidden">
+          <div class="gps-coords-row">
+            <div class="gps-coord-field"><label class="coord-label">Latitude</label><input type="text" id="workplaceLat" class="sheets-input coord-input" placeholder="14.5995" /></div>
+            <div class="gps-coord-field"><label class="coord-label">Longitude</label><input type="text" id="workplaceLng" class="sheets-input coord-input" placeholder="120.9842" /></div>
+          </div>
+          <div class="radius-row">
+            <label class="coord-label">Radius: <strong id="radiusDisplay">100</strong>m</label>
+            <input type="range" id="workplaceRadius" min="20" max="500" step="10" value="100" class="radius-slider" />
+          </div>
+          <button class="btn btn-in gps-locate-btn" id="btnSetMyLocation">📍 Use My Current Location</button>
+          <p class="gps-status" id="gpsSetStatus"></p>
+        </div>
+        <button class="btn btn-in" id="btnSaveGps" style="margin-top:12px;width:100%;">Save GPS Settings</button>
+      </div>
+
+      <div class="settings-section">
+        <h3>🔔 Notifications & Security</h3>
+        <div class="toggle-row">
+          <label class="toggle-label">Auto-logout after inactivity</label>
+          <input type="number" id="inactivityMins" min="1" max="60" value="5" class="mini-input" /> <span class="mini-label">min</span>
+        </div>
+        <div class="toggle-row">
+          <label class="toggle-label">📸 Selfie on Clock-In</label>
+          <label class="toggle-switch"><input type="checkbox" id="selfieToggle" /><span class="toggle-slider"></span></label>
+        </div>
+        <div class="toggle-row">
+          <label class="toggle-label">🔔 Push Notifications (forgot clock-out)</label>
+          <label class="toggle-switch"><input type="checkbox" id="pushToggle" /><span class="toggle-slider"></span></label>
+        </div>
+        <button class="btn btn-in" id="btnRequestPush" style="width:100%;margin-top:4px;margin-bottom:12px;">Enable Browser Notifications</button>
+        <div class="toggle-row">
+          <label class="toggle-label">📱 WhatsApp Daily Report</label>
+          <label class="toggle-switch"><input type="checkbox" id="waToggle" /><span class="toggle-slider"></span></label>
+        </div>
+        <div id="waConfig" class="hidden" style="margin-top:8px;">
+          <input type="text" id="waNumber" placeholder="WhatsApp number (e.g. 639171234567)" class="sheets-input" />
+          <label class="coord-label">Send report at:</label>
+          <input type="time" id="waReportTime" value="18:00" class="sheets-input" />
+          <button class="btn btn-in" id="btnSendWANow" style="width:100%;margin-top:8px;">Send Report Now</button>
+        </div>
+        <button class="btn btn-in" id="btnSaveNotify" style="width:100%;margin-top:12px;">Save Settings</button>
+      </div>
+
+      <div class="settings-section">
+        <h3>⏱ Overtime & Sound Settings</h3>
+        <div class="toggle-row">
+          <label class="toggle-label">🔊 Web Audio Feedback (Chimes & Alerts)</label>
+          <label class="toggle-switch"><input type="checkbox" id="audioToggle" checked /><span class="toggle-slider"></span></label>
+        </div>
+        <div class="gps-coords-row" style="margin-top:10px;">
+          <div class="gps-coord-field">
+            <label class="coord-label">Daily Overtime (> hrs)</label>
+            <input type="number" id="dailyOTHours" value="8" min="1" max="24" class="sheets-input" />
+          </div>
+          <div class="gps-coord-field">
+            <label class="coord-label">Weekly Overtime (> hrs)</label>
+            <input type="number" id="weeklyOTHours" value="40" min="1" max="168" class="sheets-input" />
+          </div>
+        </div>
+        <button class="btn btn-in" id="btnSaveOvertime" style="width:100%;margin-top:10px;">Save Overtime Rules</button>
+      </div>
+
+      <div class="settings-section">
+        <h3>💬 Webhooks & Slack / Teams Integration</h3>
+        <p class="settings-desc">Receive real-time alerts for late clock-ins and overtime in Slack or Teams.</p>
+        <div class="toggle-row">
+          <label class="toggle-label">Enable Webhook Dispatcher</label>
+          <label class="toggle-switch"><input type="checkbox" id="webhookToggle" /><span class="toggle-slider"></span></label>
+        </div>
+        <input type="text" id="webhookUrlInput" placeholder="Paste Slack/Teams/Discord Webhook URL..." class="sheets-input" style="margin-top:8px;" />
+        <div class="modal-actions" style="margin-top:8px;">
+          <button class="btn btn-out" id="btnTestWebhook">Test Connection</button>
+          <button class="btn btn-in" id="btnSaveWebhook">Save Webhook</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>💾 Database Cloud Backup & Restore</h3>
+        <p class="settings-desc">Export your entire system database to JSON or restore from a backup file.</p>
+        <div class="modal-actions">
+          <button class="btn btn-in" id="btnExportJSON">⬇ Export Backup (JSON)</button>
+          <label class="btn btn-out" style="text-align:center;cursor:pointer;">
+            ⬆ Restore Backup
+            <input type="file" id="btnImportJSON" accept=".json" style="display:none;" />
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Change Admin PIN</h3>
+        <input type="password" id="newAdminPin" maxlength="6" placeholder="New PIN (4–6 digits)" class="sheets-input" />
+        <button class="btn btn-in" id="btnSaveAdminPin">Save PIN</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ KIOSK VIEW ═══ -->
+<div id="page-kiosk" class="page">
+  <div class="kiosk-header">
+    <div class="logo-wrap" style="margin:0;">
+      <h2 class="app-name" style="font-size:22px;">WorkTap Kiosk</h2>
+    </div>
+    <button class="btn btn-out btn-sm" id="btnExitKiosk">Exit Kiosk</button>
+  </div>
+  <div class="kiosk-body">
+    <div class="kiosk-clock-card">
+      <h1 id="kioskClockDisplay" class="kiosk-time">12:00 PM</h1>
+      <p id="kioskDateDisplay" class="kiosk-date">Monday, Sep 8</p>
+    </div>
+    <div class="login-card kiosk-card">
+      <h2 class="login-title">Tap NFC or Enter PIN</h2>
+      <select id="kioskWorkerSelect" class="filter-select" style="width:100%;margin-bottom:12px;"></select>
+      <div class="pin-dots" id="kioskPinDots">
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <div class="numpad">
+        <button class="num-btn" data-kn="1">1</button>
+        <button class="num-btn" data-kn="2">2</button>
+        <button class="num-btn" data-kn="3">3</button>
+        <button class="num-btn" data-kn="4">4</button>
+        <button class="num-btn" data-kn="5">5</button>
+        <button class="num-btn" data-kn="6">6</button>
+        <button class="num-btn" data-kn="7">7</button>
+        <button class="num-btn" data-kn="8">8</button>
+        <button class="num-btn" data-kn="9">9</button>
+        <button class="num-btn back-btn-num" data-kn="back">⌫</button>
+        <button class="num-btn" data-kn="0">0</button>
+        <button class="num-btn ok-btn" data-kn="ok">OK</button>
+      </div>
+      <p class="pin-error hidden" id="kioskPinError"></p>
+    </div>
+  </div>
+</div>
+
+<!-- Leave Request Modal -->
+<div id="leaveModal" class="modal hidden">
+  <div class="modal-box">
+    <h3>🏖 Request Time-Off / Leave</h3>
+    <select id="leaveTypeSelect" class="filter-select" style="width:100%;margin-bottom:10px;">
+      <option value="PTO">Paid Time Off (PTO)</option>
+      <option value="Sick">Sick Leave</option>
+      <option value="Personal">Personal Leave</option>
+    </select>
+    <div class="shift-time-row">
+      <div class="shift-field">
+        <label class="coord-label">Start Date</label>
+        <input type="date" id="leaveStartDate" class="modal-input" />
+      </div>
+      <div class="shift-field">
+        <label class="coord-label">End Date</label>
+        <input type="date" id="leaveEndDate" class="modal-input" />
+      </div>
+    </div>
+    <input type="text" id="leaveReasonInput" placeholder="Reason (optional)" class="modal-input" style="margin-top:10px;" />
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="btn btn-out" id="btnCancelLeave">Cancel</button>
+      <button class="btn btn-in" id="btnSubmitLeave">Submit Request</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Site Location Modal -->
+<div id="locationModal" class="modal hidden">
+  <div class="modal-box">
+    <h3>🏢 Add Workplace Site</h3>
+    <input type="text" id="locNameInput" placeholder="Site Name (e.g. Branch 2)" class="modal-input" />
+    <div class="gps-coords-row" style="margin-top:8px;">
+      <div class="gps-coord-field">
+        <label class="coord-label">Latitude</label>
+        <input type="text" id="locLatInput" placeholder="14.5995" class="modal-input" />
+      </div>
+      <div class="gps-coord-field">
+        <label class="coord-label">Longitude</label>
+        <input type="text" id="locLngInput" placeholder="120.9842" class="modal-input" />
+      </div>
+    </div>
+    <div style="margin-top:8px;">
+      <label class="coord-label">Allowed Geofence Radius (meters)</label>
+      <input type="number" id="locRadiusInput" value="100" min="20" max="1000" class="modal-input" />
+    </div>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="btn btn-out" id="btnCancelLocation">Cancel</button>
+      <button class="btn btn-in" id="btnSaveLocation">Save Site</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ MODALS ══════ -->
+
+<!-- Add/Edit Worker -->
+<div id="workerModal" class="modal hidden">
+  <div class="modal-box">
+    <h3 id="modalTitle">Add Worker</h3>
+    <input type="text"     id="workerName"       placeholder="Full Name"           class="modal-input" />
+    <input type="text"     id="workerRole"       placeholder="Role / Position"     class="modal-input" />
+    <input type="text"     id="workerUsername"   placeholder="Username (for login)" class="modal-input" />
+    <input type="password" id="workerPin"        placeholder="PIN (4 digits)"       class="modal-input" maxlength="6" />
+    <input type="text"     id="workerNfcId"      placeholder="NFC Tag ID"           class="modal-input" readonly />
+    <button class="btn btn-in modal-nfc-btn" id="scanNfcBtn">📡 Scan NFC Tag</button>
+    <div class="shift-section">
+      <h4 class="shift-title">⏰ Shift Schedule</h4>
+      <div class="shift-time-row">
+        <div class="shift-field">
+          <label class="coord-label">Start Time</label>
+          <input type="time" id="workerShiftStart" class="modal-input shift-input" />
+        </div>
+        <div class="shift-field">
+          <label class="coord-label">End Time</label>
+          <input type="time" id="workerShiftEnd" class="modal-input shift-input" />
+        </div>
+      </div>
+      <label class="coord-label">Allowed Days:</label>
+      <div class="day-checks">
+        <label><input type="checkbox" class="day-check" value="1" checked /> Mon</label>
+        <label><input type="checkbox" class="day-check" value="2" checked /> Tue</label>
+        <label><input type="checkbox" class="day-check" value="3" checked /> Wed</label>
+        <label><input type="checkbox" class="day-check" value="4" checked /> Thu</label>
+        <label><input type="checkbox" class="day-check" value="5" checked /> Fri</label>
+        <label><input type="checkbox" class="day-check" value="6" /> Sat</label>
+        <label><input type="checkbox" class="day-check" value="0" /> Sun</label>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-out" id="modalCancel">Cancel</button>
+      <button class="btn btn-in"  id="modalSave">Save</button>
+    </div>
+    <input type="hidden" id="editWorkerId" />
+  </div>
+</div>
+
+<!-- Selfie Modal -->
+<div id="selfieModal" class="modal hidden">
+  <div class="modal-box selfie-box">
+    <h3>📸 Take a Selfie</h3>
+    <video id="selfieVideo" autoplay playsinline class="selfie-video"></video>
+    <canvas id="selfieCanvas" class="hidden"></canvas>
+    <img id="selfiePreview" class="selfie-preview hidden" alt="preview" />
+    <div id="selfieSnapRow" class="modal-actions">
+      <button class="btn btn-out" id="selfieSkip">Skip</button>
+      <button class="btn btn-in"  id="selfieSnap">📸 Snap</button>
+    </div>
+    <div id="selfieConfirmRow" class="modal-actions hidden">
+      <button class="btn btn-out" id="selfieRetake">Retake</button>
+      <button class="btn btn-in"  id="selfieConfirm">✅ Use Photo</button>
+    </div>
+  </div>
+</div>
+
+<!-- QR Scanner Modal -->
+<div id="qrModal" class="modal hidden">
+  <div class="modal-box qr-box">
+    <h3>📷 Scan QR Badge</h3>
+    <video id="qrVideo" autoplay playsinline class="qr-video"></video>
+    <p class="qr-hint">Point camera at worker's QR badge</p>
+    <div id="qrManualEntry" class="hidden">
+      <p class="qr-hint">BarcodeDetector not available. Enter ID manually:</p>
+      <input type="text" id="qrManualInput" class="modal-input" placeholder="Worker QR code..." />
+      <button class="btn btn-in" id="qrManualSubmit">Submit</button>
+    </div>
+    <button class="btn btn-out" id="qrCancel" style="width:100%;margin-top:12px;">Cancel</button>
+  </div>
+</div>
+
+<!-- QR Print Modal -->
+<div id="qrPrintModal" class="modal hidden">
+  <div class="modal-box qr-print-box">
+    <h3 id="qrPrintName"></h3>
+    <img id="qrPrintImg" class="qr-print-img" alt="QR Code" />
+    <p id="qrPrintLabel" class="qr-print-label"></p>
+    <p class="qr-hint">Workers scan this badge to log in quickly</p>
+    <div class="modal-actions">
+      <button class="btn btn-out" id="qrPrintClose">Close</button>
+      <button class="btn btn-in"  id="qrPrintBtn">🖨 Print</button>
+    </div>
+  </div>
+</div>
+
+<!-- Photo Viewer Modal -->
+<div id="photoViewModal" class="modal hidden">
+  <div class="modal-box">
+    <h3 id="photoViewName"></h3>
+    <img id="photoViewImg" class="photo-view-img" alt="clock-in photo" />
+    <button class="btn btn-out" id="photoViewClose" style="width:100%;margin-top:16px;">Close</button>
+  </div>
+</div>
+
+<!-- Result Overlay -->
+<div id="resultOverlay" class="result-overlay hidden">
+  <div class="result-card">
+    <div class="result-icon" id="resultIcon">✅</div>
+    <div class="result-name" id="resultName"></div>
+    <div class="result-action" id="resultAction"></div>
+    <div class="result-time" id="resultTime"></div>
+    <div class="result-duration" id="resultDuration"></div>
+  </div>
+</div>
+
+<!-- GPS Blocked -->
+<div id="gpsBlockedOverlay" class="result-overlay hidden">
+  <div class="result-card gps-blocked-card">
+    <div class="result-icon">📍🚫</div>
+    <div class="result-name">Not at Workplace</div>
+    <p class="gps-blocked-msg" id="gpsBlockedMsg"></p>
+    <button class="btn btn-out" id="gpsBlockedClose" style="width:100%;margin-top:16px;">Close</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast hidden"></div>
+
+<!-- Sheets Guide -->
+<div id="sheetsGuideModal" class="modal hidden">
+  <div class="modal-box guide-box">
+    <h3>Google Sheets Setup</h3>
+    <ol class="guide-steps">
+      <li>Open Google Sheets → create new spreadsheet.</li>
+      <li>Extensions → Apps Script → delete default code.</li>
+      <li>Paste contents of <code>google-apps-script.js</code>.</li>
+      <li>Deploy → New deployment → Web app.</li>
+      <li>Execute as: Me | Access: Anyone → Deploy.</li>
+      <li>Copy Web App URL → paste in Settings.</li>
+    </ol>
+    <button class="btn btn-in" id="closeGuide">Got it!</button>
+  </div>
+</div>
+
+<!-- ── ROTA MODALS ── -->
+
+<!-- Cell editor: pick shift for a worker/day -->
+<div id="rotaCellModal" class="modal hidden">
+  <div class="modal-box rota-cell-modal-box">
+    <h3 id="cellModalTitle">Assign Shift</h3>
+    <div id="cellModalBody" class="cell-modal-body"></div>
+    <button class="btn btn-out" id="cellModalClose" style="width:100%;margin-top:12px;">Cancel</button>
+  </div>
+</div>
+
+<!-- Shift template edit modal -->
+<div id="shiftEditModal" class="modal hidden">
+  <div class="modal-box">
+    <h3 id="shiftModalTitle">Edit Shift</h3>
+    <input type="text"  id="shiftModalName"  placeholder="Shift name (e.g. Morning)" class="modal-input" />
+    <div class="shift-time-row">
+      <div class="shift-field">
+        <label class="coord-label">Start Time</label>
+        <input type="time" id="shiftModalStart" class="modal-input shift-input" />
+      </div>
+      <div class="shift-field">
+        <label class="coord-label">End Time</label>
+        <input type="time" id="shiftModalEnd" class="modal-input shift-input" />
+      </div>
+    </div>
+    <div class="shift-color-row">
+      <label class="coord-label">Colour</label>
+      <input type="color" id="shiftModalColor" value="#1a73e8" class="shift-color-picker" />
+    </div>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="btn btn-out" id="shiftModalDelete">🗑 Delete</button>
+      <button class="btn btn-out" id="shiftModalCancel">Cancel</button>
+      <button class="btn btn-in"  id="shiftModalSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Swap request modal -->
+<div id="rotaSwapModal" class="modal hidden">
+  <div class="modal-box">
+    <h3 id="swapModalTitle">Request Shift Swap</h3>
+    <p class="settings-desc">Select the worker you want to swap with:</p>
+    <select id="swapWorkerSelect" class="filter-select" style="width:100%;margin-bottom:14px;"></select>
+    <div class="modal-actions">
+      <button class="btn btn-out" id="swapModalCancel">Cancel</button>
+      <button class="btn btn-in"  id="swapModalSubmit">Send Request</button>
+    </div>
+  </div>
+</div>
+
+<!-- Pending swaps list modal -->
+<div id="rotaSwapListModal" class="modal hidden">
+  <div class="modal-box">
+    <h3>🔄 Pending Swap Requests</h3>
+    <div id="swapList" class="swap-list"></div>
+    <button class="btn btn-out" id="swapListClose" style="width:100%;margin-top:14px;">Close</button>
+  </div>
+</div>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./service-worker.js')
+        .catch(e => console.warn('SW failed:', e));
+    });
+  }
+</script>
+<script src="js/audio.js"></script>
+<script src="js/face.js"></script>
+<script src="js/webhooks.js"></script>
+<script src="js/pdf.js"></script>
+<script src="js/device.js"></script>
+<script src="js/gps.js"></script>
+<script src="js/db.js"></script>
+<script src="js/nfc.js"></script>
+<script src="js/qr.js"></script>
+<script src="js/selfie.js"></script>
+<script src="js/notify.js"></script>
+<script src="js/workers.js"></script>
+<script src="js/logs.js"></script>
+<script src="js/rota.js"></script>
+<script src="js/admin.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Freebuff
+.freebuff/
+
+# OS
+.DS_Store
+Thumbs.db
+nul
+
+# Capacitor / Android
+android/
+ios/
+dist/
+build/
+out/
+
+# Secrets / local overrides
+.env
+.env.local
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Service worker cache (generated)
+# (keep service-worker.js committed — it's source, not generated)
