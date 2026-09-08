@@ -1,7 +1,7 @@
 {
-  "name": "worktap",
+  "name": "signout",
   "version": "1.0.0",
-  "description": "WorkTap — NFC worker attendance PWA with rota, GPS geofence & Google Sheets sync",
+  "description": "SignOut — NFC worker attendance PWA with rota, GPS geofence & Google Sheets sync",
   "main": "index.html",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",

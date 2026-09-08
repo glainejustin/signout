@@ -29,7 +29,7 @@ const Notify = (() => {
         body,
         icon: icon || './icons/icon-192.png',
         badge: './icons/icon-192.png',
-        tag:   'worktap-alert',
+        tag:   'signout-alert',
       });
     } catch (e) {
       console.warn('Notification failed:', e);
@@ -81,12 +81,12 @@ const Notify = (() => {
 
     const now      = new Date();
     const [rh, rm] = (settings.dailyReportTime || '18:00').split(':').map(Number);
-    const lastSent = parseInt(localStorage.getItem('wt_wa_last_sent') || '0');
+    const lastSent = parseInt(localStorage.getItem('signout_wa_last_sent') || '0');
     const todayKey = DB.localDateStr();
 
     // Send once per day at the configured time
     if (now.getHours() === rh && now.getMinutes() === rm && lastSent !== todayKey) {
-      localStorage.setItem('wt_wa_last_sent', todayKey);
+      localStorage.setItem('signout_wa_last_sent', todayKey);
       _sendWhatsAppReport(settings);
     }
   }

@@ -201,9 +201,10 @@ const App = (() => {
 
   // QR scan handler
   function _onQrScan(data) {
-    // Expected format: "worktap:worker:<id>"
-    if (data.startsWith('worktap:worker:')) {
-      const id = data.replace('worktap:worker:', '');
+    // Expected format: "signout:worker:<id>"
+    // Support both legacy worktap: and new signout: badges
+    if (data.startsWith('signout:worker:') || data.startsWith('worktap:worker:')) {
+      const id = data.replace(/^.*:worker:/, '');
       const w  = DB.getWorkerById(id);
       if (w) { _selectWorker(w); return; }
     }
@@ -491,7 +492,7 @@ const App = (() => {
   }
 
   function _onQrDashScan(data) {
-    if (data.startsWith('worktap:worker:')) {
+    if (data.startsWith('signout:worker:') || data.startsWith('worktap:worker:')) {
       showToast('QR scan: use the login screen to switch workers.');
     } else {
       // Could be a location QR

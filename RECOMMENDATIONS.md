@@ -1,6 +1,6 @@
-# 💡 Recommendations & Roadmap — WorkTap
+# 💡 Recommendations & Roadmap — SignOut
 
-> How to take WorkTap from a polished PWA to a production-grade workforce platform.
+> How to take SignOut from a polished PWA to a production-grade workforce platform.
 
 ---
 
@@ -57,7 +57,7 @@ See `SECURITY.md` for full findings (C1…L4).
 
 ## 3. Architecture — When You're Ready for a Backend
 
-WorkTap's offline-first PWA is the right start. When you outgrow `localStorage`:
+SignOut's offline-first PWA is the right start. When you outgrow `localStorage`:
 
 ```
 Browser (PWA)  ⇄  Apps Script / Cloud Function  ⇄  DB (Firestore / Supabase / Postgres)

@@ -1,7 +1,7 @@
-# ⏱ WorkTap — Worker Attendance System
+# ⏱ SignOut — Worker Attendance System
 
 <p align="center">
-  <img src="icons/icon-192.png" width="100" alt="WorkTap Logo" />
+  <img src="icons/icon-192.png" width="100" alt="SignOut Logo" />
 </p>
 
 <p align="center">
@@ -28,9 +28,9 @@
 
 ---
 
-## ✨ What is WorkTap?
+## ✨ What is SignOut?
 
-**WorkTap** is a complete worker attendance & rota system that runs in the browser — no backend, no subscription. Install it as a PWA, hand out cheap NFC stickers, and workers tap to clock IN/OUT. Everything else — shifts, leave, GPS lock, analytics, Sheets sync — is built in.
+**SignOut** is a complete worker attendance & rota system that runs in the browser — no backend, no subscription. Install it as a PWA, hand out cheap NFC stickers, and workers tap to clock IN/OUT. Everything else — shifts, leave, GPS lock, analytics, Sheets sync — is built in.
 
 Perfect for **restaurants, warehouses, retail, clinics, factories** — any team with 5–200 workers who need reliable time tracking.
 
@@ -93,8 +93,8 @@ Perfect for **restaurants, warehouses, retail, clinics, factories** — any team
 ### 📱 Platform
 - **PWA** — installs to home screen, works 100% offline, auto-syncs when back online
 - **Kiosk Mode** — shared tablet at entrance with live clock, worker select + PIN pad
-- **Capacitor Android** — `com.worktap.attendance`, splash screen included
-- **Service Worker** — `worktap-v3` cache, offline-first fetch strategy
+- **Capacitor Android** — `com.signout.attendance`, splash screen included
+- **Service Worker** — `signout-v1` cache, offline-first fetch strategy
 
 ---
 
@@ -124,22 +124,22 @@ python -m http.server 8000
 
 ### Option 2 — Deploy to GitHub Pages (free HTTPS)
 
-1. Create a new GitHub repository (e.g. `worktap`)
+1. Create a new GitHub repository (e.g. `signout`)
 2. Push this project:
    ```bash
    git init
    git add .
-   git commit -m "feat: initial WorkTap release"
+   git commit -m "feat: initial SignOut release"
    git branch -M main
-   git remote add origin https://github.com/<you>/worktap.git
+   git remote add origin https://github.com/<you>/signout.git
    git push -u origin main
    ```
 3. In GitHub: **Settings → Pages → Source: `main` / root** → Save
-4. Your live URL: `https://<you>.github.io/worktap/`
+4. Your live URL: `https://<you>.github.io/signout/`
 
 ### Option 3 — Netlify (drag & drop)
 
-Drag the `SignInOut` folder onto [app.netlify.com/drop](https://app.netlify.com/drop) — live HTTPS URL instantly.
+Drag the `signout` folder onto [app.netlify.com/drop](https://app.netlify.com/drop) — live HTTPS URL instantly.
 
 ### Option 4 — Android APK (Capacitor)
 
@@ -156,7 +156,7 @@ npx cap open android   # builds in Android Studio
 
 1. Buy **NTAG213 stickers** (~$4 for 25 on AliExpress / Amazon)
 2. Stick one per worker badge (or one per entrance door)
-3. In WorkTap: **Admin → Workers → Edit → Scan NFC Tag** → hold tag near phone → Save
+3. In SignOut: **Admin → Workers → Edit → Scan NFC Tag** → hold tag near phone → Save
 4. Workers now tap to clock in/out instantly
 
 > NFC requires **Android + Chrome** with NFC enabled in system settings. iPhone Web NFC is limited.
@@ -182,7 +182,7 @@ Push every clock event to a Google Sheet with auto-formatting + daily summary:
 2. **Extensions → Apps Script** → delete default code
 3. Copy-paste the entire `google-apps-script.js` from this repo
 4. **Deploy → New deployment → Web app** → Execute as: *Me*, Access: *Anyone* → Deploy
-5. Copy the **Web App URL** → paste into **WorkTap → Admin → Settings → Google Sheets Sync → Sync Now**
+5. Copy the **Web App URL** → paste into **SignOut → Admin → Settings → Google Sheets Sync → Sync Now**
 
 Three tabs are created automatically:
 - **Attendance Logs** — every tap (color-coded IN/OUT)
@@ -213,11 +213,11 @@ Add extra sites in **Admin → Sites → + Add Site**.
 ## 🗂️ Project Structure
 
 ```
-SignInOut/
+signout/
 ├── index.html              # Single-page app (all views + modals)
 ├── manifest.json           # PWA manifest
-├── service-worker.js       # Offline cache (worktap-v3)
-├── capacitor.config.json   # Capacitor Android config (com.worktap.attendance)
+├── service-worker.js       # Offline cache (signout-v1)
+├── capacitor.config.json   # Capacitor Android config (com.signout.attendance)
 ├── google-apps-script.js   # Apps Script for Sheets sync
 ├── css/
 │   └── styles.css          # All styling
@@ -250,9 +250,9 @@ SignInOut/
 All data lives in `localStorage` (no server). Keys:
 
 ```
-worktap_workers, worktap_logs, worktap_settings, worktap_lockouts,
-worktap_rotas, worktap_shifts, worktap_swaps, worktap_audit,
-worktap_locations, worktap_leave_reqs, worktap_open_shifts
+signout_workers, signout_logs, signout_settings, signout_lockouts,
+signout_rotas, signout_shifts, signout_swaps, signout_audit,
+signout_locations, signout_leave_reqs, signout_open_shifts
 ```
 
 - **Admin → Settings → Database → Export Backup (JSON)** — downloads everything
@@ -311,5 +311,5 @@ MIT — free for personal and commercial use. See [LICENSE](LICENSE) if present.
 ---
 
 <p align="center">
-  Built with ❤️ — Web NFC + PWA + LocalStorage — <strong>WorkTap v1.0</strong>
+  Built with ❤️ — Web NFC + PWA + LocalStorage — <strong>SignOut v1.0</strong>
 </p>

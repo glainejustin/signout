@@ -1,4 +1,4 @@
-# WorkTap — NFC Worker Attendance System
+# SignOut — NFC Worker Attendance System
 ## Complete Setup Guide
 
 ---
@@ -45,10 +45,10 @@ Web NFC only works when served over **HTTPS**. Pick one free option:
 
 ### Option A — GitHub Pages (Free, Recommended)
 1. Create a free account at [github.com](https://github.com)
-2. Create a new repository (e.g. `worktap`)
+2. Create a new repository (e.g. `signout`)
 3. Upload all files in this project to the repo
 4. Go to **Settings → Pages → Source → main branch → / (root)**
-5. Your URL will be: `https://yourusername.github.io/worktap/`
+5. Your URL will be: `https://yourusername.github.io/signout/`
 
 ### Option B — Netlify (Drag & Drop, Free)
 1. Go to [netlify.com](https://netlify.com) and sign up free
@@ -77,7 +77,7 @@ Web NFC only works when served over **HTTPS**. Pick one free option:
 
 1. Buy **NTAG213 NFC stickers** (AliExpress ~$3 for 10 pcs)
 2. Stick one tag per worker on their badge or ID card
-3. In WorkTap, tap **👷 Workers → select a worker → ✏️ Edit**
+3. In SignOut, tap **👷 Workers → select a worker → ✏️ Edit**
 4. Tap **"Scan NFC Tag"** and hold the tag near the phone
 5. The tag ID is auto-filled — tap **Save Worker**
 
@@ -125,7 +125,7 @@ Replace `9876` with your desired PIN.
    - Execute as: **Me**
    - Who has access: **Anyone**
 7. Click **Deploy** → Copy the **Web App URL**
-8. In WorkTap → Admin → Sheets Sync → paste the URL → tap **Sync Now**
+8. In SignOut → Admin → Sheets Sync → paste the URL → tap **Sync Now**
 
 Logs are pushed to 3 tabs automatically:
 - **Attendance Logs** — every tap with timestamp
@@ -166,4 +166,4 @@ Logs are pushed to 3 tabs automatically:
 
 ---
 
-*WorkTap v1.0 — Built with Web NFC API + PWA*
+*SignOut v1.0 — Built with Web NFC API + PWA*

@@ -1,6 +1,6 @@
 {
-  "appId": "com.worktap.attendance",
-  "appName": "WorkTap Attendance",
+  "appId": "com.signout.attendance",
+  "appName": "SignOut",
   "webDir": ".",
   "bundledWebRuntime": false,
   "server": {

@@ -1,6 +1,6 @@
 {
-  "name": "WorkTap - NFC Attendance",
-  "short_name": "WorkTap",
+  "name": "SignOut - NFC Attendance",
+  "short_name": "SignOut",
   "description": "NFC-based worker sign in/out attendance system",
   "start_url": "./index.html",
   "display": "standalone",

@@ -205,7 +205,7 @@ const Workers = (() => {
     const modal  = document.getElementById('qrPrintModal');
     const img    = document.getElementById('qrPrintImg');
     const label  = document.getElementById('qrPrintLabel');
-    img.src      = QR.getQRDataUrl('worktap:worker:' + w.id, 200);
+    img.src      = QR.getQRDataUrl('signout:worker:' + w.id, 200);
     label.textContent = w.name + ' · ' + w.role;
     document.getElementById('qrPrintName').textContent = w.name;
     modal.classList.remove('hidden');

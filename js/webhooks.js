@@ -14,7 +14,7 @@ const Webhooks = (() => {
     if (!webhookUrl || !settings.webhooksEnabled) return;
 
     const payload = {
-      text: `⏱ *WorkTap Alert*: ${title}\n> ${message}`,
+      text: `⏱ *SignOut Alert*: ${title}\n> ${message}`,
       attachments: [
         {
           color: details.type === 'overtime' ? '#e65100' : details.type === 'late' ? '#d32f2f' : '#1a73e8',
@@ -42,7 +42,7 @@ const Webhooks = (() => {
     if (!url) return { success: false, message: 'Please enter a webhook URL.' };
     try {
       const payload = {
-        text: '⏱ *WorkTap*: Webhook connection test successful! ✅'
+        text: '⏱ *SignOut*: Webhook connection test successful! ✅'
       };
       await fetch(url, {
         method: 'POST',

@@ -59,9 +59,9 @@ const Device = (() => {
       ctx.fillStyle    = '#1a73e8';
       ctx.fillRect(0, 0, 200, 50);
       ctx.fillStyle = '#fff';
-      ctx.fillText('WorkTap🔒fingerprint', 4, 10);
+      ctx.fillText('SignOut🔒fingerprint', 4, 10);
       ctx.fillStyle = 'rgba(102,204,0,0.7)';
-      ctx.fillText('WorkTap🔒fingerprint', 5, 11);
+      ctx.fillText('SignOut🔒fingerprint', 5, 11);
       return canvas.toDataURL().slice(-80); // last 80 chars is enough
     } catch {
       return 'nocanvas';

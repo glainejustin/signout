@@ -1,4 +1,4 @@
-# 🔒 Security Policy & Threat Model — WorkTap
+# 🔒 Security Policy & Threat Model — SignOut
 
 > **Version:** 1.0 — Last updated 2026-09-08  
 > **Scope:** `index.html`, all `js/*`, `service-worker.js`, `manifest.json`, `google-apps-script.js`
@@ -7,7 +7,7 @@
 
 ## 1. Executive Summary
 
-WorkTap is a **100 % client-side PWA** — there is no server to breach.  
+SignOut is a **100 % client-side PWA** — there is no server to breach.  
 All data lives in `localStorage`. That makes the threat surface small, but also means **the browser is the trust boundary**. Every finding below assumes an attacker who can:
 
 * open the app in a browser (physical access to the kiosk/shared tablet), *or*
@@ -58,7 +58,7 @@ The audit is ordered **critical → low** so you can prioritise.
 * **Mitigations (recommended):**
   1. Hash worker PINs with `crypto.subtle.digest('SHA-256', pin + salt)` — store only the hash. Compare hashes in `authenticateWorker`.
   2. At least move `adminPin` to a salted hash + add exponential back-off on the admin gate (currently no lockout at all).
-  3. Document that WorkTap is **not** a substitute for server-side auth — add a `SECURITY.md` disclaimer.
+  3. Document that SignOut is **not** a substitute for server-side auth — add a `SECURITY.md` disclaimer.
   4. Future: offer an opt-in encrypted vault (`AES-GCM` with a passphrase) for teams that need it.
 
 ### 🟠 H2 — GPS geofence is client-side only — trivially spoofed
@@ -107,7 +107,7 @@ The audit is ordered **critical → low** so you can prioritise.
 ### 🟢 L2 — Service worker caches without integrity check
 
 * `service-worker.js` caches `js/*.js` via `c.addAll(ASSETS)` and then re-caches any `fetch` response blindly. A poisoned response could persist.
-* **Fix (recommended):** Only cache `response.ok && response.type === 'basic' && response.url.startsWith(location.origin)` (already partly done); add a cache-busting version bump (`worktap-v3` → `worktap-v4` when shipping this patch).
+* **Fix (recommended):** Only cache `response.ok && response.type === 'basic' && response.url.startsWith(location.origin)` (already partly done); add a cache-busting version bump (`signout-v3` → `signout-v4` when shipping this patch).
 
 ### 🟢 L3 — `photo` Data URLs bloat `localStorage` (5 MB quota)
 
@@ -133,7 +133,7 @@ The audit is ordered **critical → low** so you can prioritise.
 | M3 | Admin PIN rate limit | ⬜ TODO |
 | M4 | URL allow-list for Sheets/Webhooks + re-auth | ⬜ TODO |
 | L1 | Add CSP meta tag | ✅ Shipped (`index.html`) |
-| L2 | Bump SW cache version | ✅ Shipped (`worktap-v4`) |
+| L2 | Bump SW cache version | ✅ Shipped (`signout-v4`) |
 | L3 | Photo → IndexedDB migration | ⬜ Planned |
 | L4 | Date handling | ⬜ Backlog |
 
@@ -151,7 +151,7 @@ Please **do not** open a public issue with exploit details — use the private c
 
 ## 6. Disclaimer
 
-WorkTap is a **local-first PWA** with no backend. It is suitable for small teams where the device is trusted. For regulated environments (payroll, biometric data) add a server-side layer with proper authentication, encryption at rest, and audit retention — see `RECOMMENDATIONS.md § Backend`.
+SignOut is a **local-first PWA** with no backend. It is suitable for small teams where the device is trusted. For regulated environments (payroll, biometric data) add a server-side layer with proper authentication, encryption at rest, and audit retention — see `RECOMMENDATIONS.md § Backend`.
 
 ---
 

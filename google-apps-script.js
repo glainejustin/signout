@@ -1,6 +1,6 @@
 /**
  * ╔══════════════════════════════════════════════════════════════╗
- * ║  WorkTap — Google Apps Script                               ║
+ * ║  SignOut — Google Apps Script                               ║
  * ║  Paste this entire file into your Google Apps Script editor ║
  * ╚══════════════════════════════════════════════════════════════╝
  *
@@ -9,7 +9,7 @@
  *  2. Delete the default code, paste this entire file
  *  3. Click Deploy → New deployment → Web app
  *  4. Execute as: Me  |  Who has access: Anyone
- *  5. Copy the Web App URL and paste it into WorkTap Admin → Sheets Sync
+ *  5. Copy the Web App URL and paste it into SignOut Admin → Sheets Sync
  */
 
 // ── CONFIG ────────────────────────────────────────────────────
@@ -90,7 +90,7 @@ function doPost(e) {
 
 // Allow GET for health check
 function doGet(e) {
-  return _jsonResponse({ status: 'ok', message: 'WorkTap Sheets webhook is running.' });
+  return _jsonResponse({ status: 'ok', message: 'SignOut Sheets webhook is running.' });
 }
 
 // ── DAILY SUMMARY ─────────────────────────────────────────────

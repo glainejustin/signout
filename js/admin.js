@@ -494,7 +494,7 @@ const Admin = (() => {
   function exportJSONBackup() {
     const jsonStr = DB.exportFullDatabase();
     const blob = new Blob([jsonStr], { type: 'application/json' });
-    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `worktap_backup_${DB.localDateStr()}.json` });
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `signout_backup_${DB.localDateStr()}.json` });
     a.click(); URL.revokeObjectURL(a.href);
     App.showToast('Full database backup exported!');
   }

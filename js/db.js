@@ -6,19 +6,49 @@
 const DB = (() => {
 
   const KEYS = {
-    WORKERS:        'worktap_workers',
-    LOGS:           'worktap_logs',
-    SETTINGS:       'worktap_settings',
-    LOCKOUTS:       'worktap_lockouts',
-    LEAVE:          'worktap_leave',
-    ROTAS:          'worktap_rotas',       // { [weekKey]: { [workerId]: [{ day, shiftId }] } }
-    SHIFTS:         'worktap_shifts',      // shift templates [{id,name,start,end,color}]
-    SWAPS:          'worktap_swaps',       // swap requests
-    AUDIT_LOGS:     'worktap_audit',       // admin audit trail
-    LOCATIONS:      'worktap_locations',   // multi-site geofences
-    LEAVE_REQUESTS: 'worktap_leave_reqs',  // worker time-off requests
-    OPEN_SHIFTS:    'worktap_open_shifts', // shift bidding
+    WORKERS:        'signout_workers',
+    LOGS:           'signout_logs',
+    SETTINGS:       'signout_settings',
+    LOCKOUTS:       'signout_lockouts',
+    LEAVE:          'signout_leave',
+    ROTAS:          'signout_rotas',       // { [weekKey]: { [workerId]: [{ day, shiftId }] } }
+    SHIFTS:         'signout_shifts',      // shift templates [{id,name,start,end,color}]
+    SWAPS:          'signout_swaps',       // swap requests
+    AUDIT_LOGS:     'signout_audit',       // admin audit trail
+    LOCATIONS:      'signout_locations',   // multi-site geofences
+    LEAVE_REQUESTS: 'signout_leave_reqs',  // worker time-off requests
+    OPEN_SHIFTS:    'signout_open_shifts', // shift bidding
   };
+
+  // ── LEGACY MIGRATION: copy worktap_* keys → signout_* on first load (backward compat)
+  const LEGACY_KEYS = {
+    signout_workers:    'worktap_workers',
+    signout_logs:       'worktap_logs',
+    signout_settings:   'worktap_settings',
+    signout_lockouts:   'worktap_lockouts',
+    signout_leave:      'worktap_leave',
+    signout_rotas:      'worktap_rotas',
+    signout_shifts:     'worktap_shifts',
+    signout_swaps:      'worktap_swaps',
+    signout_audit:      'worktap_audit',
+    signout_locations:  'worktap_locations',
+    signout_leave_reqs: 'worktap_leave_reqs',
+    signout_open_shifts:'worktap_open_shifts',
+  };
+  (function _migrateLegacyKeys() {
+    try {
+      for (const [newKey, oldKey] of Object.entries(LEGACY_KEYS)) {
+        if (!localStorage.getItem(newKey) && localStorage.getItem(oldKey)) {
+          localStorage.setItem(newKey, localStorage.getItem(oldKey));
+          console.info('[SignOut] Migrated ' + oldKey + ' → ' + newKey);
+        }
+      }
+      // Also migrate notification flag
+      if (!localStorage.getItem('signout_wa_last_sent') && localStorage.getItem('wt_wa_last_sent')) {
+        localStorage.setItem('signout_wa_last_sent', localStorage.getItem('wt_wa_last_sent'));
+      }
+    } catch {}
+  })();
 
   // ─────────────────────────────────────────
   // WORKERS
@@ -313,7 +343,7 @@ const DB = (() => {
   function getSettings() {
     return JSON.parse(localStorage.getItem(KEYS.SETTINGS) || JSON.stringify({
       adminPin:             '1234',
-      businessName:         'WorkTap Attendance',
+      businessName:         'SignOut Attendance',
       sheetsUrl:            '',
       gpsEnabled:           false,
       workplaceLat:         '',

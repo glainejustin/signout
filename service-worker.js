@@ -1,4 +1,4 @@
-const CACHE = 'worktap-v4';
+const CACHE = 'signout-v1';
 const ASSETS = [
   './', './index.html', './manifest.json',
   './css/styles.css',
