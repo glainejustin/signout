@@ -34,3 +34,4 @@ yarn-error.log*
 
 # Service worker cache (generated)
 # (keep service-worker.js committed — it's source, not generated)
+design-system/
