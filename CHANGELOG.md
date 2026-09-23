@@ -6,11 +6,29 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 ## [Unreleased]
 
 ### Added
+- **`npm run icons`** (`scripts/generate-icons.mjs`) — draws the SignOut mark (a stopwatch) as signed distance
+  fields and exports it with zero dependencies: PWA icons, an Apple touch icon and a favicon, plus, with
+  `--android`, every launcher / round / adaptive-foreground / splash density bucket the Android project expects.
+  Wired into the release pipeline, so APKs are branded at build time.
+- `index.html` now declares a favicon and an `apple-touch-icon` (it previously had neither).
 - **Stable APK download URL** — every release now also publishes `signout-latest.apk` (with its own `.sha256`)
   alongside the versioned `signout-<tag>.apk`, so `releases/latest/download/signout-latest.apk` keeps working
   as versions move.
 - README: a download badge, a dynamic latest-release badge, and a one-liner install + checksum-verify block
   in the Android section.
+
+### Fixed
+- **The shipped icon still said “WT” (WorkTap).** `icons/icon-192.png` and `icon-512.png` hadn't been touched
+  since the initial release commit, so the rebrand missed the artwork — visible in the README, on the PWA home
+  screen and as the APK launcher icon. Regenerated in SignOut branding.
+- **Android launch branding** — `cap add android` supplied Capacitor's stock launcher icons and a Capacitor
+  splash screen; both are replaced at build time now, and the adaptive-icon background colour is set to navy
+  (was `#FFFFFF`).
+
+### Changed
+- `manifest.json` `background_color`/`theme_color` and the Capacitor splash colour were still the pre-rebrand
+  indigo `#4f46e5`; now `#0F172A`, matching `<meta name="theme-color">`.
+- Service worker precaches the PWA icons (cache → `signout-v5`).
 
 <!-- New entries go here. When releasing, rename the section to `## [x.y.z] — YYYY-MM-DD`,
      bump the version in package.json + package-lock.json, and add a compare link at the bottom. -->

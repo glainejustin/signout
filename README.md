@@ -292,7 +292,8 @@ signout/
 │   ├── pwa-install.js      # beforeinstallprompt pill
 │   └── pdf.js              # PDF export helper
 ├── scripts/
-│   └── build-web.mjs       # Stages css/js/icons + index.html into dist/ for Capacitor
+│   ├── build-web.mjs       # Stages css/js/icons + index.html into dist/ for Capacitor
+│   └── generate-icons.mjs  # Draws the app icon → PWA sizes + Android launcher/splash (npm run icons)
 ├── tests/                  # Unit tests (node --test, zero dependencies)
 │   ├── harness.mjs         # Loads the plain <script> modules into a vm sandbox
 │   ├── db.test.mjs         # Hours maths, overtime guard, payroll CSV

@@ -1,8 +1,9 @@
 // NOTE: bump CACHE (signout-v4 → v5 …) on every release, or clients keep the old
 // cached CSS/JS forever (the fetch handler is cache-first).
-const CACHE = 'signout-v4';
+const CACHE = 'signout-v5';
 const ASSETS = [
   './', './index.html', './manifest.json',
+  './icons/icon-192.png', './icons/icon-512.png',
   './css/styles.css',
   './js/theme.js', './js/security.js', './js/sw-register.js', './js/pwa-install.js',
   './js/device.js', './js/gps.js', './js/db.js', './js/nfc.js',

@@ -97,6 +97,12 @@ jobs:
       - name: Sync web assets into the native project
         run: npx cap sync android
 
+      # `cap add android` writes Capacitor's stock icons and splash; this replaces them
+      # with the SignOut mark (launcher, round, adaptive foreground + splash, all
+      # density buckets) and sets the adaptive background colour.
+      - name: Brand the app icons
+        run: npm run icons -- --android
+
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
