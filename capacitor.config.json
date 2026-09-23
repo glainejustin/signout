@@ -1,7 +1,7 @@
 {
   "appId": "com.signout.attendance",
   "appName": "SignOut",
-  "webDir": ".",
+  "webDir": "dist",
   "bundledWebRuntime": false,
   "server": {
     "androidScheme": "https"

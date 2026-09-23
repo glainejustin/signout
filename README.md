@@ -162,10 +162,17 @@ Drag the `signout` folder onto [app.netlify.com/drop](https://app.netlify.com/dr
 
 ```bash
 npm install
-npx cap add android
-npx cap sync
+npm run build          # stages the web app into dist/ (never ships tests/ or node_modules)
+npx cap add android    # generates android/ (git-ignored)
+npx cap sync           # copies dist/ into the native project
 npx cap open android   # builds in Android Studio
 ```
+
+`npm run android` does the build + sync + open in one go.
+
+> **Prebuilt APKs:** pushing a `v*` tag runs [`.github/workflows/release.yml`](.github/workflows/release.yml),
+> which builds a debug APK on CI (JDK 21 + the runner's Android SDK) and attaches
+> `signout-<tag>.apk` plus a `.sha256` checksum to that tag's GitHub release — no Android Studio needed.
 
 ---
 
@@ -234,7 +241,7 @@ signout/
 ├── index.html              # Single-page app (all views + modals)
 ├── manifest.json           # PWA manifest
 ├── service-worker.js       # Offline cache — bump CACHE (signout-v4…) on every release
-├── capacitor.config.json   # Capacitor Android config (com.signout.attendance)
+├── capacitor.config.json   # Capacitor Android config (com.signout.attendance, webDir: dist)
 ├── google-apps-script.js   # Apps Script for Sheets sync
 ├── css/
 │   └── styles.css          # All styling
@@ -257,6 +264,8 @@ signout/
 │   ├── device.js           # Fingerprint + short ID
 │   ├── pwa-install.js      # beforeinstallprompt pill
 │   └── pdf.js              # PDF export helper
+├── scripts/
+│   └── build-web.mjs       # Stages css/js/icons + index.html into dist/ for Capacitor
 ├── tests/                  # Unit tests (node --test, zero dependencies)
 │   ├── harness.mjs         # Loads the plain <script> modules into a vm sandbox
 │   ├── db.test.mjs         # Hours maths, overtime guard, payroll CSV

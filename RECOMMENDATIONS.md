@@ -137,8 +137,14 @@ Browser (PWA)  ⇄  Apps Script / Cloud Function  ⇄  DB (Firestore / Supabase 
 ## 7. Deployment & DevOps
 
 * Already have CI + Pages (`ci.yml`, `pages.yml`) — green ✅
-* **Next:** branch protection (`main` requires CI pass), auto-preview deploys for PRs, and a `release.yml` that builds the Capacitor APK on tag push.
-* **Capacitor CD:** `npm run android` opens Android Studio; add a GitHub Action that builds an `.apk` artifact on `v*` tags for testers.
+* ✅ **`release.yml`** — tag pushes (`v*`) build a debug APK on CI (JDK 21 + the runner's Android SDK) and
+  attach `signout-<tag>.apk` + `.sha256` to that tag's release, with the APK also kept as a workflow artifact.
+  `android/` stays git-ignored and is generated per build, so the APK always matches the pinned Capacitor version.
+* ✅ **Slim web payload** — `npm run build` stages the app into `dist/` (`webDir`), so the APK no longer
+  bundles `node_modules`, `tests/` or `.github/`.
+* **Next:** branch protection (`main` requires CI pass) and auto-preview deploys for PRs.
+* **Signed releases:** the pipeline ships a **debug** APK. For Play Store uploads, add a keystore
+  (`ANDROID_KEYSTORE_BASE64` secret) and build a signed `.aab` (`bundleRelease`).
 
 ---
 

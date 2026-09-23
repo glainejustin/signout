@@ -3,6 +3,30 @@
 All notable changes to SignOut are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- **Tag-triggered APK release pipeline** (`.github/workflows/release.yml`) — pushing a `v*` tag installs
+  dependencies (JDK 21 + the runner's Android SDK), runs the unit tests, generates the Android project,
+  builds a debug APK, and attaches `signout-<tag>.apk` plus a `.sha256` checksum to that tag's GitHub
+  release (creating the release if the tag doesn't have one). The APK is also kept as a workflow artifact.
+- **`npm run build`** (`scripts/build-web.mjs`) — stages the web app into `dist/`, now `webDir` in
+  `capacitor.config.json`.
+
+### Fixed
+- **APK web payload contained the whole repo.** `webDir: "."` made `cap sync` copy `node_modules`,
+  `tests/`, `.github/` and the rest of the source tree into the app's assets. Only `index.html`,
+  `manifest.json`, `service-worker.js`, `css/`, `js/` and `icons/` are staged now (~325 KB), and the script
+  fails the build if `index.html` references a file that isn't there.
+- `package-lock.json` still said `signinout` / `1.0.0` / `ISC`; aligned with `package.json` (`signout` / `1.1.0` / `MIT`).
+
+### Changed
+- `npm run sync` / `npm run android` now rebuild `dist/` first, so they can't ship stale assets.
+- GitHub Pages (`pages.yml`) now deploys `dist/` instead of the repo root, so `tests/`, `scripts/`,
+  `.github/` and package metadata are no longer served (and downloadable) from the public site — the
+  deployed PWA is the same payload the APK embeds.
+- README: Android build steps, the prebuilt-APK note, and `scripts/` in the project structure.
+
 ## [1.1.0] — 2026-09-23
 
 ### Added

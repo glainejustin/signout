@@ -1,0 +1,149 @@
+name: Release APK
+
+# Fires when a version tag is pushed (v1.0.0, v1.1.0, …) and builds an installable
+# Android APK for testers, attaching it to that tag's GitHub release.
+# Can also be run by hand from the Actions tab for an existing tag.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to build and attach the APK to (e.g. v1.1.0)'
+        required: true
+
+# Needed to create/update the release and upload assets.
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  apk:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      # On a tag push both resolve to the tag; on a manual run this checks out the
+      # tag you named (not `main`), so the APK matches the release it's attached to.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Resolve release tag
+        id: rel
+        run: echo "tag=${{ github.event.inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Capacitor 8 / Android Gradle Plugin 8.x need JDK 21.
+      # The ubuntu-latest image ships the Android SDK (ANDROID_HOME/ANDROID_SDK_ROOT),
+      # so no extra SDK setup or licence acceptance is required.
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # compileSdkVersion is 36 (see android/variables.gradle once generated), which is
+      # newer than some runner images ship. Best-effort pre-install; AGP auto-downloads
+      # anything still missing, so this never fails the release.
+      - name: Ensure Android SDK platform is present
+        run: |
+          if command -v sdkmanager >/dev/null 2>&1; then
+            yes | sdkmanager --licenses >/dev/null 2>&1 || true
+            sdkmanager --install "platforms;android-36" "build-tools;36.0.0" >/dev/null 2>&1 \
+              || echo "::notice::sdkmanager could not pre-install — Gradle will auto-download if needed"
+          else
+            echo "::notice::sdkmanager not on PATH — relying on the runner image / Gradle auto-download"
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Never ship an APK built from a failing commit.
+      - name: Unit tests
+        run: npm test
+
+      # Stages the web app into dist/ (webDir in capacitor.config.json).
+      - name: Stage web assets
+        run: npm run build
+
+      # android/ is generated in CI (git-ignored) rather than committed, so the
+      # APK always matches the pinned @capacitor/android version.
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: Sync web assets into the native project
+        run: npx cap sync android
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      - name: Build debug APK
+        working-directory: android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Name the APK after the tag and checksum it
+        id: apk
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.rel.outputs.tag }}"
+          APK="signout-${TAG}.apk"
+          SRC="android/app/build/outputs/apk/debug/app-debug.apk"
+          test -f "$SRC" || { echo "::error::APK not produced at $SRC"; exit 1; }
+          cp "$SRC" "$APK"
+          sha256sum "$APK" > "$APK.sha256"
+          echo "file=$APK" >> "$GITHUB_OUTPUT"
+          ls -lh "$APK"
+
+      # Available even if the release upload is skipped or fails.
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: signout-apk-${{ steps.rel.outputs.tag }}
+          if-no-files-found: error
+          path: |
+            ${{ steps.apk.outputs.file }}
+            ${{ steps.apk.outputs.file }}.sha256
+
+      # A tag with no release yet (e.g. an older tag) still gets one.
+      - name: Ensure the release exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.rel.outputs.tag }}
+        run: gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "$TAG" --generate-notes
+
+      - name: Attach APK to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.rel.outputs.tag }}
+        run: gh release upload "$TAG" "${{ steps.apk.outputs.file }}" "${{ steps.apk.outputs.file }}.sha256" --clobber
+
+      - name: Summary
+        run: |
+          {
+            echo "### 📦 ${{ steps.rel.outputs.tag }}"
+            echo ""
+            echo "APK: \`${{ steps.apk.outputs.file }}\`"
+            echo ""
+            echo '```'
+            cat "${{ steps.apk.outputs.file }}.sha256"
+            echo '```'
+            echo ""
+            echo "Install with \`adb install -r ${{ steps.apk.outputs.file }}\` or by opening the file on the device."
+          } >> "$GITHUB_STEP_SUMMARY"
