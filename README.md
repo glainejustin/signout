@@ -437,6 +437,35 @@ the trap — a launcher masks them and cuts the transparent corners into wedges 
 `tests/branding.test.mjs` asserts both properties against the committed PNGs. **Bump `CACHE` in
 `service-worker.js` whenever the icons change**, or installed clients keep serving the old ones.
 
+### Keeping the workflows on a supported runtime
+
+```bash
+npm run check:actions          # scans .github/workflows/ by default
+npm run check:actions -- path/to/workflow.yml
+```
+
+A `uses:` pin does not say what runtime the action needs — that lives in the action's own
+`action.yml` (`runs.using`). `actions/checkout@v4` and `@v7` look identical in review, which
+is why every workflow here ended up on the deprecated Node 20 runtime without anyone
+noticing until GitHub annotated every run.
+
+This reads each action's manifest **at the pinned ref** and fails on anything behind
+`CURRENT_NODE`:
+
+```
+✖ actions/checkout@v4                        [node20]   runs on Node 20; Actions now use Node 24
+::error::actions/checkout@v4 (ci.yml:12) — runs on Node 20; Actions now use Node 24
+```
+
+There is no action→runtime table to maintain; the one encoded fact is the current Node
+major, so a runtime newer than this script knows about warns rather than fails. Composite
+actions are followed into what they wrap (bounded, cycle-safe) — a stale action hidden
+inside `upload-pages-artifact` is still a stale action. Malformed references, reusable
+workflows (which declare no runtime of their own) and `docker://` refs are classified
+explicitly, and a manifest that cannot be read is an error rather than a silent pass: a
+check that succeeds having verified nothing is worse than no check. It runs in `ci.yml` on
+every push and PR, before the install step, so a bad pin is caught on the PR that adds it.
+
 ### 🔏 Signed release builds (Play)
 
 A debug APK cannot go to the Play Store, and neither can an AAB signed with a throwaway key:

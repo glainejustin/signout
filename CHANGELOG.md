@@ -38,6 +38,20 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   `verify:apk` comparison against the published binary. Runs nightly (06:17 UTC), immediately on
   `release: published`, and on demand for any tag. A tag predating the icon generator is skipped with a
   notice rather than reported as a failure.
+- **`npm run check:actions` (`scripts/check-action-runtimes.mjs`) — CI now fails when a workflow pins an
+  action that runs on a deprecated Node runtime.** Bumping eight actions off Node 20 was a one-off; nothing
+  stopped the next `uses: actions/checkout@v4` from arriving, since a stale pin looks identical to a current
+  one in review and the only signal was a warning annotation nobody fails on. The runtime is not derivable
+  from the pin — it lives in each action's own `action.yml` (`runs.using`) — so this reads that file **at the
+  pinned ref**, which also catches a tag republished onto an older runtime. There is deliberately no
+  action→runtime table to go stale: the single fact encoded is `CURRENT_NODE`, and anything behind it fails
+  while anything newer is a warning. **Composite actions are followed into what they wrap** (bounded and
+  cycle-safe), because a stale Node action hidden inside e.g. `upload-pages-artifact` is still a stale Node
+  action. Malformed references, reusable workflows (which declare no runtime) and `docker://` refs are
+  classified rather than skipped silently, and a manifest that cannot be read is an error — a check that
+  passes when it verified nothing is worse than no check. Runs in `ci.yml` on every push and PR, needs no
+  install or token, and covers `tests/action-runtimes.test.mjs` for the parsing, verdicts, traversal,
+  depth limit and cycle handling.
 - **Signed release builds — a Play-uploadable AAB and a signed release APK.** Releases previously carried
   only a debug-signed APK, which Play rejects: uploads need a bundle signed with an upload key, and Play
   permanently binds an app to the first key it sees, so a per-run generated key would ship something

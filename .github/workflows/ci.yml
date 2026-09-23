@@ -18,6 +18,16 @@ jobs:
           node-version: 22
           cache: npm
 
+      # Reads each pinned action's own action.yml at its pinned ref and fails on an action
+      # whose `runs.using` is behind CURRENT_NODE — the Node 20 deprecation that needed a
+      # coordinated bump of eight actions, caught one reference at a time from now on.
+      # Needs no install and no token (raw.githubusercontent, with the contents API as a
+      # fallback for private actions), so it can run before anything else.
+      - name: Action runtimes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: npm run check:actions
+
       - name: Install
         run: npm ci
 
