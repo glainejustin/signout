@@ -1,6 +1,6 @@
 {
   "name": "signout",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "SignOut \u2014 NFC worker attendance PWA with rota, GPS geofence & Google Sheets sync",
   "main": "index.html",
   "scripts": {

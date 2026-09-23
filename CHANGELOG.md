@@ -8,7 +8,28 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 <!-- New entries go here. When releasing, rename the section to `## [x.y.z] — YYYY-MM-DD`,
      bump the version in package.json + package-lock.json, and add a compare link at the bottom. -->
 
+## [1.2.1] — 2026-09-23
+
+The first release whose **signed artifacts actually publish**. Tag `v1.2.0` built and
+signature-verified its AAB, but the branding check then rejected the release APK and every upload step
+was skipped, so no `v1.2.0` release was ever created. Everything in the 1.2.0 section below ships here
+instead, plus:
+
+### Fixed
+- **`npm run verify:apk` rejected release-variant APKs, which blocked the signed artifacts.** AGP's
+  release resource optimisation rewrites `res/` paths to short canonical names (`res/aa.png`), so the
+  path-based comparison found none of the 26 expected images and reported every one of them missing —
+  one step before the AAB and the release APK would have been attached. The check now falls back to
+  matching the generated artwork against the PNGs the APK actually contains, and prints the `res/`
+  inventory when a match still can't be found. The strict path comparison still runs first, so a stale
+  icon sitting at a known path is still caught by pixel comparison. `tests/branding.test.mjs` covers
+  both layouts — canonical names, AGP-shortened names, one repainted icon, one dropped icon, and an APK
+  whose artwork isn't ours at all.
+
 ## [1.2.0] — 2026-09-23
+
+> **Tag `v1.2.0` produced no release.** Its artifact verification failed before anything was uploaded,
+> so these changes first shipped in v1.2.1.
 
 ### Added
 - **`npm run release:check`** (`scripts/release-check.mjs`) — one command that reproduces the release
@@ -210,6 +231,7 @@ Android build pipeline release: the first version with an installable APK attach
   Google Sheets sync, Slack/Teams/Discord webhooks, WhatsApp daily report, PWA offline mode,
   Capacitor Android shell, plus `SECURITY.md` / `RECOMMENDATIONS.md`.
 
+[1.2.1]: https://github.com/glainejustin/signout/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/glainejustin/signout/compare/v1.1.2...v1.2.0
 [1.1.2]: https://github.com/glainejustin/signout/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/glainejustin/signout/compare/v1.1.0...v1.1.1
