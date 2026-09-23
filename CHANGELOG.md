@@ -5,6 +5,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+<!-- New entries go here. When releasing, rename the section to `## [x.y.z] — YYYY-MM-DD`,
+     bump the version in package.json + package-lock.json, and add a compare link at the bottom. -->
+
+## [1.1.1] — 2026-09-23
+
+Android build pipeline release: the first version with an installable APK attached automatically.
+
 ### Added
 - **Tag-triggered APK release pipeline** (`.github/workflows/release.yml`) — pushing a `v*` tag installs
   dependencies (JDK 21 + the runner's Android SDK), runs the unit tests, generates the Android project,
@@ -69,4 +76,5 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   Google Sheets sync, Slack/Teams/Discord webhooks, WhatsApp daily report, PWA offline mode,
   Capacitor Android shell, plus `SECURITY.md` / `RECOMMENDATIONS.md`.
 
+[1.1.1]: https://github.com/glainejustin/signout/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/glainejustin/signout/compare/v1.0.0...v1.1.0
