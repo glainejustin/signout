@@ -35,11 +35,11 @@ jobs:
     steps:
       # Tags are needed to regenerate the release's artwork; the verifier itself always
       # comes from the default branch, so the check survives script changes.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
 

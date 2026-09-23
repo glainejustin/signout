@@ -37,6 +37,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   notice rather than reported as a failure.
 
 ### Changed
+- **All GitHub Actions bumped to their current majors** (`checkout` v4→v7, `setup-node` v4→v7, `setup-java` v5→v6,
+  `cache` v4→v6, `upload-artifact` v4→v7, `configure-pages` v5→v6, `upload-pages-artifact` v3→v5,
+  `deploy-pages` v4→v5). `checkout@v4` and `setup-node@v4` ran on the deprecated Node 20 runtime, which GitHub
+  was already force-upgrading to Node 24 with a warning on every run; `cache@v4`, `upload-artifact@v4`,
+  `configure-pages@v5` and `deploy-pages@v4` were on the same runtime. Every pinned action now runs on Node 24
+  (or is composite), which needs Actions Runner 2.327.1+ — satisfied by hosted `ubuntu-latest`. No workflow
+  inputs changed.
 - **Release notes come from the changelog.** The release workflow now fills a brand-new release's body with
   that version's `CHANGELOG.md` section (falling back to GitHub's generated notes only when a version has no
   section), rather than always publishing a bare `**Full Changelog**` link. Existing releases are never
