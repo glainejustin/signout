@@ -39,14 +39,14 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       # Capacitor 8 / Android Gradle Plugin 8.x need JDK 21.
       # The ubuntu-latest image ships the Android SDK (ANDROID_HOME/ANDROID_SDK_ROOT),
       # so no extra SDK setup or licence acceptance is required.
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'

@@ -14,6 +14,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   `capacitor.config.json`.
 
 ### Fixed
+- **`npm test` failed on the CI runner.** `node --test "tests/**/*.test.mjs"` only understands glob patterns on
+  Node 22+, so Node 20 reported `Could not find '.../tests/**/*.test.mjs'` and the CI job failed. The script now
+  passes `tests/*.test.mjs` (shell-expanded on Linux/macOS, globbed natively by Node ≥22 on Windows) and all three
+  workflows pin Node 22.
 - **APK web payload contained the whole repo.** `webDir: "."` made `cap sync` copy `node_modules`,
   `tests/`, `.github/` and the rest of the source tree into the app's assets. Only `index.html`,
   `manifest.json`, `service-worker.js`, `css/`, `js/` and `icons/` are staged now (~325 KB), and the script
