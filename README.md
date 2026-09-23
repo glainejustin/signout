@@ -365,6 +365,12 @@ and that the icons inside the APK's web payload match the committed ones. The re
 workflow runs it after `assembleDebug` and **fails before uploading anything** if they
 differ.
 
+A second workflow, `apk-audit.yml`, runs the same check **nightly against the published
+release** — it downloads the latest APK, verifies the published checksums and the stable
+alias, regenerates the expected artwork from that release's own tag, and compares. It also
+fires whenever a release is published, and can be run on demand for any tag from the
+Actions tab.
+
 ---
 
 ## 🧪 Troubleshooting

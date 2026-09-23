@@ -1,0 +1,167 @@
+name: Audit published APK
+
+# The release workflow verifies the APK it builds, but that check only runs when a tag is
+# pushed. Once an asset is published it can still stop matching the source it claims to be
+# built from — a re-published release, a hand-uploaded binary, a mutated asset — and
+# nothing would notice until the next release. This audits the APK that is actually
+# published, against the artwork regenerated from *that release's own tag*, so the current
+# state of `main` can never mask (or cause) a false alarm.
+on:
+  schedule:
+    # Daily, off the hour to avoid the top-of-hour queue.
+    - cron: '17 6 * * *'
+  # Also audit immediately when a release is published, rather than waiting for the cron.
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to audit (default: the latest published release)'
+        required: false
+
+# Read-only: this job downloads release assets and never publishes anything.
+permissions:
+  contents: read
+
+concurrency:
+  group: apk-audit-${{ github.event.release.tag_name || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    name: Verify the published APK
+    runs-on: ubuntu-latest
+
+    steps:
+      # Tags are needed to regenerate the release's artwork; the verifier itself always
+      # comes from the default branch, so the check survives script changes.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Resolve the release to audit
+        id: rel
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.inputs.tag || github.event.release.tag_name }}"
+          if [ -z "$TAG" ]; then
+            TAG=$(gh release view --json tagName --jq .tagName)
+          fi
+          test -n "$TAG" || { echo "::error::no published release to audit"; exit 1; }
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "reason=${{ github.event_name }}" >> "$GITHUB_OUTPUT"
+          echo "auditing $TAG (triggered by ${{ github.event_name }})"
+
+      - name: Download its published assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.rel.outputs.tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p audit
+          gh release download "$TAG" --dir audit --clobber
+          ls -l audit
+
+      # Published checksums must describe the published bytes, and the stable alias the
+      # README links to must be the same binary as the versioned asset.
+      - name: Check the published checksums and the stable alias
+        id: assets
+        env:
+          TAG: ${{ steps.rel.outputs.tag }}
+        run: |
+          set -euo pipefail
+          cd audit
+          shopt -s nullglob
+          APKS=( *.apk )
+          if [ ${#APKS[@]} -eq 0 ]; then
+            echo "::warning::$TAG has no APK attached — nothing to audit."
+            echo "skip=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          FAILED=0
+          for sum in *.sha256; do
+            echo "--- $sum"
+            sha256sum -c "$sum" || FAILED=1
+          done
+          [ "$FAILED" -eq 0 ] || { echo "::error::a published checksum does not match the APK published beside it (or names a file that was never published)"; exit 1; }
+
+          VERSIONED="signout-${TAG}.apk"
+          if [ -f signout-latest.apk ] && [ -f "$VERSIONED" ]; then
+            if cmp -s signout-latest.apk "$VERSIONED"; then
+              echo "✅ signout-latest.apk is byte-identical to $VERSIONED"
+            else
+              echo "::error::signout-latest.apk differs from $VERSIONED — the README's stable download link serves a different build."
+              exit 1
+            fi
+          elif [ -f "$VERSIONED" ]; then
+            echo "::warning::no signout-latest.apk on this release — releases/latest/download/signout-latest.apk won't resolve."
+          fi
+
+          { echo "sha256=$(sha256sum "$VERSIONED" 2>/dev/null || sha256sum "${APKS[0]}")"; } >> "$GITHUB_OUTPUT"
+
+      # The Android icons are generated, not committed, so reconstruct the release's
+      # expected artwork from its own tag. The generator creates its own directories and
+      # needs no dependencies, so this stays a few seconds — no JDK, SDK, Capacitor or
+      # npm install (the pipeline itself runs it inside a real `cap add android` project).
+      - name: Regenerate the artwork from the release's tag
+        id: artwork
+        env:
+          TAG: ${{ steps.rel.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if [ -n "${skip:-}" ]; then exit 0; fi
+          if ! git cat-file -e "$TAG:scripts/generate-icons.mjs" 2>/dev/null; then
+            echo "::notice::$TAG predates the icon generator — its APK is not expected to carry SignOut artwork."
+            echo "skip=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          mkdir -p tag-tree
+          git archive "$TAG" | tar -x -C tag-tree
+          mkdir -p tag-tree/android/app/src/main/res/values
+          ( cd tag-tree && node scripts/generate-icons.mjs --android )
+          echo "regenerated $(find tag-tree/android/app/src/main/res -name '*.png' | wc -l) images from $TAG"
+
+      - name: Verify the published APK against its tagged source
+        env:
+          TAG: ${{ steps.rel.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if [ -n "${skip:-}" ]; then
+            echo "::notice::skipping artwork verification for $TAG"
+            exit 0
+          fi
+          APK="audit/signout-${TAG}.apk"
+          [ -f "$APK" ] || APK=$(ls audit/*.apk | head -1)
+          echo "auditing $APK"
+          node scripts/verify-apk-branding.mjs "$APK" \
+            tag-tree/android/app/src/main/res tag-tree/icons
+
+      - name: Summary
+        if: always()
+        env:
+          TAG: ${{ steps.rel.outputs.tag }}
+        run: |
+          {
+            echo "### 🔎 Published APK audit — $TAG"
+            echo ""
+            echo "Triggered by: \`${{ github.event_name }}\`"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Verdict | ${{ job.status }} |"
+            echo "| Release | [$TAG](https://github.com/${{ github.repository }}/releases/tag/$TAG) |"
+            echo "| Artwork source | \`$TAG\` tag, regenerated in the runner |"
+            echo ""
+            echo "Assets published for this release:"
+            echo ""
+            echo '```'
+            ls -l audit 2>/dev/null || echo '(none)'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

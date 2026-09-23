@@ -18,6 +18,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   buckets exist on both sides, and that the icons in the APK's web payload match the committed ones.
   Covered by `tests/branding.test.mjs` (PNG decoder, comparison tolerance, icon inventory, and that the
   navy is identical in the verifier, `manifest.json`, `index.html` and `capacitor.config.json`).
+- **`.github/workflows/apk-audit.yml` — a daily audit of the *published* APK.** The release workflow
+  checks the binary it builds, but that only happens when a tag is pushed; a published asset can still
+  stop matching its source afterwards (re-uploaded, hand-uploaded, mutated). This job downloads the latest
+  release's assets, verifies the published checksums and that the stable alias is byte-identical to the
+  versioned APK, then regenerates the expected artwork **from that release's own tag** and runs the same
+  `verify:apk` comparison against the published binary. Runs nightly (06:17 UTC), immediately on
+  `release: published`, and on demand for any tag. A tag predating the icon generator is skipped with a
+  notice rather than reported as a failure.
 
 ### Changed
 - **Release notes come from the changelog.** The release workflow now fills a brand-new release's body with

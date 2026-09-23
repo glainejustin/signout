@@ -14,12 +14,16 @@
  *
  * Zero dependencies, like the rest of scripts/.
  *
- *   node scripts/verify-apk-branding.mjs [apk] [resDir]
+ *   node scripts/verify-apk-branding.mjs [apk] [resDir] [iconsDir]
  *
- * Defaults: android/app/build/outputs/apk/debug/app-debug.apk and
- * android/app/src/main/res (both produced by `npx cap add/sync android` + `npm run
- * icons -- --android`). Exits non-zero, with GitHub `::error::` annotations, on any
- * missing or mismatched asset.
+ * Defaults: android/app/build/outputs/apk/debug/app-debug.apk, android/app/src/main/res
+ * (both produced by `npx cap add/sync android` + `npm run icons -- --android`) and
+ * icons/. Pass an explicit iconsDir to audit a published APK against another tree, e.g.
+ * a release tag (see .github/workflows/apk-audit.yml). Exits non-zero, with GitHub
+ * `::error::` annotations, on any missing or mismatched asset.
+ *
+ * `resDir` only needs android/app/src/main/res to exist — the Android icons are written
+ * by the generator alone, so an audit does not need Capacitor or the Android SDK.
  */
 
 import fs from 'node:fs';
@@ -274,6 +278,7 @@ function collectPngs(dir, root = dir) {
 function main() {
   const apkPath = path.resolve(process.argv[2] || path.join(ROOT, 'android/app/build/outputs/apk/debug/app-debug.apk'));
   const resDir = path.resolve(process.argv[3] || path.join(ROOT, 'android/app/src/main/res'));
+  const iconsDir = path.resolve(process.argv[4] || path.join(ROOT, 'icons'));
   const errors = [];
   const warnings = [];
   const annotate = (level, msg) => {
@@ -360,10 +365,9 @@ function main() {
 
   // 3. The PWA payload copied into the APK is byte-identical to the committed icons,
   //    so a stale dist/ cannot ship either.
-  const iconDir = path.join(ROOT, 'icons');
-  if (fs.existsSync(iconDir)) {
-    for (const name of fs.readdirSync(iconDir).filter(n => n.endsWith('.png'))) {
-      const local = fs.readFileSync(path.join(iconDir, name));
+  if (fs.existsSync(iconsDir)) {
+    for (const name of fs.readdirSync(iconsDir).filter(n => n.endsWith('.png'))) {
+      const local = fs.readFileSync(path.join(iconsDir, name));
       const entry = zipPngs.get(`assets/public/icons/${name}`);
       if (!entry) {
         annotate('::error::', `APK web payload is missing icons/${name}.`);
