@@ -34,6 +34,13 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      # The same command contributors run before tagging, minus the APK stages (no JDK or
+      # Android SDK on this runner — the release workflow builds those). It re-runs the
+      # suite, which costs a second, and adds what nothing else checked here: that
+      # `npm run build` stages the real payload and that dist/ contains no leakage.
+      - name: Release gate (fast path)
+        run: npm run release:check -- --no-android
+
       - name: HTMLHint
         run: npx --yes htmlhint index.html || true
 

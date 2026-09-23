@@ -9,6 +9,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
      bump the version in package.json + package-lock.json, and add a compare link at the bottom. -->
 
 ### Added
+- **`npm run release:check`** (`scripts/release-check.mjs`) — one command that reproduces the release
+  workflow locally, before a tag is pushed: dependencies → required files → unit tests → staged web
+  assets → debug APK → APK branding verification. The APK stages need a JDK and an Android SDK; without
+  them the run ends **PARTIAL** and names what was skipped rather than claiming a pass it didn't earn,
+  `--require-apk` makes that fatal, and `--apk <file>` verifies a binary you already have (a downloaded
+  release, a CI artifact) with no Android toolchain at all. Platform plumbing — SDK/JDK discovery, the
+  `cmd /c` wrapper Windows needs for the npm/npx shims, the Gradle wrapper invocation — is covered by
+  `tests/release-check.test.mjs`. CI runs its fast path (`--no-android`) on every push and PR, so the
+  staged web payload and its leakage rules are now enforced there too, not only on release.
 - **`npm run verify:apk`** (`scripts/verify-apk-branding.mjs`) — opens a built APK, decodes its launcher,
   adaptive-foreground and splash PNGs and compares them against the generated artwork. The release
   workflow runs it right after `assembleDebug` and **fails before naming or uploading anything**, so an

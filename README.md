@@ -294,13 +294,15 @@ signout/
 ├── scripts/
 │   ├── build-web.mjs       # Stages css/js/icons + index.html into dist/ for Capacitor
 │   ├── generate-icons.mjs  # Draws the app icon → PWA sizes + Android launcher/splash (npm run icons)
-│   └── verify-apk-branding.mjs # Decodes a built APK and checks its icons/splash (npm run verify:apk)
+│   ├── verify-apk-branding.mjs # Decodes a built APK and checks its icons/splash (npm run verify:apk)
+│   └── release-check.mjs   # Runs the whole release gate locally (npm run release:check)
 ├── tests/                  # Unit tests (node --test, zero dependencies)
 │   ├── harness.mjs         # Loads the plain <script> modules into a vm sandbox
 │   ├── db.test.mjs         # Hours maths, overtime guard, payroll CSV
 │   ├── security.test.mjs   # Sanitizers, PIN hashing, dialog fallback
 │   ├── gps.test.mjs        # Haversine geofence maths
-│   └── branding.test.mjs   # Icon artwork contract, PNG decoder, pixel comparison
+│   ├── branding.test.mjs   # Icon artwork contract, PNG decoder, pixel comparison
+│   └── release-check.test.mjs # Release-gate platform plumbing (SDK/JDK probing, spawn rules)
 └── icons/
     ├── icon-192.png
     └── icon-512.png
@@ -349,6 +351,35 @@ npm run test:watch
 ```
 
 The tests load the real `js/*.js` files into a Node `vm` sandbox (with a tiny `localStorage` + `document` stub), so they exercise the shipped code rather than a copy. CI runs `npm test` on every push and PR.
+
+### Before you tag — the release gate
+
+```bash
+npm run release:check
+```
+
+The release workflow is the source of truth for what shipping requires, but it only runs
+*after* a tag is pushed — so a broken test or stale artwork is discovered by the release
+itself, on `main`, where the fix costs another tag. This runs the same stages, in the same
+order, locally:
+
+| Stage | What it enforces |
+|---|---|
+| dependencies | `npm ci` when `node_modules` is missing or `--fresh` |
+| required files | the files/dirs `ci.yml` insists on |
+| unit tests | the full suite |
+| stage web assets | `npm run build`, then that `dist/` has the payload and **no leakage** |
+| build debug APK | Capacitor sync, icon branding, `gradlew assembleDebug` |
+| verify APK branding | the built APK really ships the generated icons and splash |
+
+The APK stages need a JDK and an Android SDK. Without them the run ends **PARTIAL**, naming
+what was skipped — it never reports a pass it didn't earn:
+
+```bash
+npm run release:check -- --apk path/to/signout-vX.Y.Z.apk  # check a downloaded build (no SDK)
+npm run release:check -- --require-apk                    # fail instead of skipping
+npm run release:check -- --no-android                     # fast path: tests + web build
+```
 
 ### Verifying a release APK
 
