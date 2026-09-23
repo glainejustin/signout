@@ -10,6 +10,14 @@
  *   npm run icons -- --android # also brand the generated android/ project (CI)
  *
  * Colours follow the design system: navy #0F172A → blue #0369A1, white glyph.
+ *
+ * Two shapes ship for the web, because they answer different questions:
+ *
+ *   - `icon-192/512` are the *rounded* mark ("any") — transparent corners, shown as drawn.
+ *   - `icon-maskable-192/512` are full-bleed with the mark inside the safe zone, for
+ *     `"purpose": "maskable"`. A launcher applies its own mask to those, so an icon with
+ *     transparent corners gets them cut into wedges, and a mark outside the central 80%
+ *     circle gets clipped. tests/branding.test.mjs pins both properties.
  */
 
 import fs from 'node:fs';
@@ -117,6 +125,15 @@ function sdGlyph(px, py, s) {
 
 // ── Renderer ─────────────────────────────────────────────────
 const SS = 4; // supersampling per axis
+
+/**
+ * Scale for the maskable marks. The glyph's furthest ink sits ≈0.344 from the centre in
+ * normalized space, and a maskable icon must keep its content inside the central
+ * 80%-diameter circle (radius 0.4) — so 0.82 leaves a comfortable margin while keeping the
+ * mark the same visual weight as the Android adaptive foreground, which uses the same
+ * scale against Android's tighter 66% safe zone.
+ */
+const MASKABLE_GLYPH_SCALE = 0.82;
 
 /**
  * @param {number} size
@@ -230,6 +247,15 @@ console.log('🎨 SignOut icons — ' + hex(NAVY) + ' → ' + hex(BLUE));
 // PWA / web
 write(path.join(ROOT, 'icons/icon-192.png'), render(192));
 write(path.join(ROOT, 'icons/icon-512.png'), render(512));
+
+// Maskable: full-bleed background (the launcher supplies the mask) with the mark pulled
+// inside the safe circle. Separate files rather than a `purpose: "any maskable"` claim on
+// the rounded ones, because those cannot satisfy both readings at once.
+for (const size of [192, 512]) {
+  write(path.join(ROOT, `icons/icon-maskable-${size}.png`),
+    render(size, { mask: 'square', glyphScale: MASKABLE_GLYPH_SCALE }));
+}
+
 write(path.join(ROOT, 'icons/apple-touch-icon.png'), render(180, { mask: 'square', glyphScale: 0.92 }));
 write(path.join(ROOT, 'icons/favicon-32.png'), render(32, { mask: 'square', glyphScale: 0.95 }));
 

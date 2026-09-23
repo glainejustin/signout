@@ -148,3 +148,127 @@ test('the navy is the same in the verifier, manifest and index.html', () => {
 test('a non-zip file is rejected with a clear error', () => {
   assert.throws(() => readZipEntries(Buffer.from('this is definitely not an APK, not even close')), /not a zip/i);
 });
+
+// ── The web icon set ────────────────────────────────────────────────────────
+// A launcher masks a `maskable` icon to whatever shape its theme wants, so two things have
+// to hold that are invisible on a desktop browser: the background must reach the edges
+// (a rounded icon's transparent corners become wedges once masked) and the mark must stay
+// inside the safe circle. The manifest used to claim `any maskable` for the rounded icons,
+// which cannot satisfy both readings at once — hence separate files per purpose.
+
+/** The furthest "ink" (the white mark, not the gradient background) from the centre,
+ *  measured as a fraction of the icon size, plus the coverage that produced it. */
+function glyphExtent(img) {
+  const centre = img.width / 2;
+  let max = 0, ink = 0;
+  for (let y = 0; y < img.height; y++) {
+    for (let x = 0; x < img.width; x++) {
+      const p = pixelAt(img, x, y);
+      // alpha>128 is the 50% coverage contour; min(r,g,b)>128 excludes navy/blue (min 3–15)
+      // and includes anything half-blended toward white.
+      if (p[3] > 128 && Math.min(p[0], p[1], p[2]) > 128) {
+        ink++;
+        max = Math.max(max, Math.hypot(x + 0.5 - centre, y + 0.5 - centre) / img.width);
+      }
+    }
+  }
+  return { max, ink };
+}
+
+const MASKABLE_SAFE_RADIUS = 0.4; // the spec's safe zone: central 80% diameter
+
+test('the maskable icons are full-bleed, so a launcher mask cannot expose gaps', () => {
+  for (const name of ['icon-maskable-192.png', 'icon-maskable-512.png']) {
+    const img = readIcon(name);
+    for (const [x, y] of [[0, 0], [img.width - 1, 0], [0, img.height - 1], [img.width - 1, img.height - 1]]) {
+      assert.equal(pixelAt(img, x, y)[3], 255, `${name} corner (${x},${y}) must be opaque`);
+    }
+  }
+});
+
+test('the maskable icons keep the mark inside the safe circle', () => {
+  for (const name of ['icon-maskable-192.png', 'icon-maskable-512.png']) {
+    const img = readIcon(name);
+    const { max, ink } = glyphExtent(img);
+    assert.ok(ink > 200, `${name} should contain the mark, found ${ink} ink pixels`);
+    assert.ok(max <= MASKABLE_SAFE_RADIUS,
+      `${name} mark reaches ${max.toFixed(3)} of the icon size — a masked launcher would clip it (safe radius ${MASKABLE_SAFE_RADIUS})`);
+    assert.ok(max > 0.15,
+      `${name} mark only reaches ${max.toFixed(3)} — it would look shrunken inside a masked launcher`);
+  }
+});
+
+test('the rounded icons keep their transparent corners (the two purposes are not the same file)', () => {
+  for (const name of ['icon-192.png', 'icon-512.png']) {
+    assert.equal(pixelAt(readIcon(name), 0, 0)[3], 0, `${name} is the "any" shape: transparent corners`);
+  }
+});
+
+test('every declared icon exists, and its purpose matches how it is actually drawn', () => {
+  const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest.json'), 'utf8'));
+  const purposes = manifest.icons.map(i => i.purpose);
+  assert.ok(purposes.includes('maskable'), 'the manifest should offer a maskable icon');
+  assert.ok(purposes.includes('any'), 'and an unmodified one');
+  assert.equal(purposes.filter(p => p.includes(' ')).length, 0,
+    'a single file cannot be both "any" and "maskable" — the shapes conflict');
+
+  for (const icon of manifest.icons) {
+    const file = path.join(ROOT, icon.src);
+    assert.ok(fs.existsSync(file), `${icon.src} is declared but not committed`);
+    const img = decodePng(fs.readFileSync(file));
+    assert.equal(`${img.width}x${img.height}`, icon.sizes, `${icon.src} must match its declared size`);
+    if (icon.purpose === 'maskable') {
+      assert.equal(pixelAt(img, 0, 0)[3], 255, `${icon.src} is declared maskable but has transparent corners`);
+      assert.ok(glyphExtent(img).max <= MASKABLE_SAFE_RADIUS, `${icon.src} is declared maskable but the mark leaves the safe circle`);
+    }
+  }
+});
+
+test('the icon generator emits exactly the icons the manifest declares', () => {
+  // A file that no longer ships, or a new file nothing declares, is a silent drift between
+  // the generator and the install experience.
+  const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest.json'), 'utf8'));
+  const declared = new Set(manifest.icons.map(i => path.basename(i.src)));
+  for (const extra of ['apple-touch-icon.png', 'favicon-32.png']) {
+    assert.ok(fs.existsSync(path.join(ROOT, 'icons', extra)), `${extra} should be committed`);
+  }
+  for (const name of declared) {
+    assert.ok(fs.existsSync(path.join(ROOT, 'icons', name)), `${name} should exist`);
+  }
+});
+
+test('the service worker precaches files that exist (a 404 would abort its install)', () => {
+  const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8');
+  const block = sw.slice(sw.indexOf('const ASSETS'), sw.indexOf('];', sw.indexOf('const ASSETS')));
+  const assets = [...block.matchAll(/'([^']+)'/g)].map(m => m[1]);
+  assert.ok(assets.length > 20, 'the precache list should cover the app');
+  for (const asset of assets) {
+    if (asset === './' || asset.endsWith('/')) continue;
+    assert.ok(fs.existsSync(path.join(ROOT, asset)),
+      `${asset} is precached but missing — \`addAll\` rejects on a 404, which breaks the offline install`);
+  }
+  for (const name of manifestIcons()) {
+    assert.ok(assets.includes(`./${name}`), `${name} should be precached for offline installs`);
+  }
+});
+
+test('the docs quote the cache version the service worker actually uses', () => {
+  const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8');
+  const actual = /^const CACHE = '([^']+)'/m.exec(sw)?.[1];
+  assert.ok(actual, 'service-worker.js should declare CACHE');
+
+  // The README named `signout-v3` long after the constant had moved to v5, which is exactly
+  // the kind of stale detail nobody notices until a user follows it.
+  const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+  const quoted = [...readme.matchAll(/signout-v\d+/g)].map(m => m[0]);
+  assert.ok(quoted.length > 0, 'the README should document the cache name');
+  for (const name of new Set(quoted)) {
+    assert.equal(name, actual, `README says \`${name}\` but service-worker.js uses \`${actual}\``);
+  }
+});
+
+/** Basenames of the icons the manifest declares, for cross-checks. */
+function manifestIcons() {
+  const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest.json'), 'utf8'));
+  return manifest.icons.map(i => i.src);
+}

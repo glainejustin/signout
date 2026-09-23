@@ -18,29 +18,25 @@
       "src": "icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "SignOut — Tap to clock in"
+      "purpose": "any"
     },
     {
-      "src": "icons/icon-512.png",
+      "src": "icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "form_factor": "wide",
-      "label": "SignOut — Admin dashboard"
+      "purpose": "maskable"
     }
   ],
   "shortcuts": [

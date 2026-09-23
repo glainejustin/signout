@@ -57,6 +57,31 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   the debug APK but warns visibly** in an annotation and in the run summary, so a release with no
   Play-uploadable artifact cannot be mistaken for one that has it. Documented in the README under
   *Signed release builds*.
+- **A real maskable app icon.** The manifest declared both icons `"purpose": "any maskable"`, but a single
+  file cannot be both: a launcher masks a maskable icon to its own shape, and the rounded mark has
+  **transparent corners** (alpha 0 at `(0,0)`), so those corners were being cut into wedges on any launcher
+  that masks. `icons/icon-maskable-192/512.png` are now generated full-bleed (corner alpha 255) with the mark
+  pulled inside the maskable safe circle (the central 80% diameter, measured at 64% of it), and the manifest
+  declares real purposes — `any` for the rounded pair, `maskable` for the new one — alongside the existing
+  favicon and Apple touch icon. The mark itself is unchanged: the four pre-existing PNGs regenerate
+  byte-for-byte identically, and so do the Android launcher, round, adaptive-foreground and splash assets.
+  `tests/branding.test.mjs` now asserts the maskable invariants against the committed pixels (full-bleed, mark
+  inside the safe zone, and not shrunk), that each manifest entry exists at its declared size and its purpose
+  matches how the file is actually drawn, and that the service worker precaches files that exist — a 404 there
+  makes `addAll` reject and breaks the offline install.
+
+### Fixed
+- **The README's icons and documentation.** Its four screenshots pointed at `via.placeholder.com`, which no
+  longer resolves — they had been rendering as broken images — so they now use a host that answers, and the
+  note beside them says plainly that they are placeholders. The docs also quoted a service-worker cache from
+  three versions ago (`signout-v3`, and `signout-v4` in the project tree, against an actual `v5`), named a
+  released APK that was no longer current (`signout-v1.1.1.apk`), and listed a `scripts/` and `icons/`
+  directory that had never been updated for the signing script or the new icon files. The cache version is
+  bumped to `signout-v6` for the new icons, and a test now fails if the README ever quotes a cache name the
+  service worker does not use — the same class of staleness, in the one place a user actually reads.
+- **Manifest entries that could not be satisfied.** The `screenshots` array declared a 512×512 icon as both a
+  `narrow` and a `wide` app screenshot, which is not a screenshot and misdescribes both form factors; with no
+  real captures in the repo it is removed rather than left to feed the install UI something wrong.
 
 ### Changed
 - **All GitHub Actions bumped to their current majors** (`checkout` v4→v7, `setup-node` v4→v7, `setup-java` v5→v6,
