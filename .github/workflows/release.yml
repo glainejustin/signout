@@ -36,6 +36,20 @@ jobs:
         id: rel
         run: echo "tag=${{ github.event.inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
 
+      # Guard rail: this workflow always runs from the default branch but builds the
+      # *tagged* tree, so a tag cut before the staging script existed can't be built
+      # (its `webDir: "."` would also embed the whole repo in the APK). Fail loudly
+      # with an actionable message instead of a confusing "Missing script: build".
+      - name: Preflight — tagged tree is buildable
+        run: |
+          if [ ! -f scripts/build-web.mjs ]; then
+            echo "::error::${{ steps.rel.outputs.tag }} predates the APK pipeline (no scripts/build-web.mjs)."
+            echo "::error::Tag a commit that includes it (e.g. the tip of main) instead of re-building an older tag."
+            exit 1
+          fi
+          node -e "const s=JSON.parse(require('fs').readFileSync('package.json','utf8')).scripts||{}; if(!s.build){console.error('::error::package.json has no build script');process.exit(1)}"
+          echo "✅ ${{ steps.rel.outputs.tag }} contains the build pipeline"
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
