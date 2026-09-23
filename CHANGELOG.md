@@ -8,6 +8,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 <!-- New entries go here. When releasing, rename the section to `## [x.y.z] — YYYY-MM-DD`,
      bump the version in package.json + package-lock.json, and add a compare link at the bottom. -->
 
+## [1.2.0] — 2026-09-23
+
 ### Added
 - **`npm run release:check`** (`scripts/release-check.mjs`) — one command that reproduces the release
   workflow locally, before a tag is pushed: dependencies → required files → unit tests → staged web
@@ -208,6 +210,7 @@ Android build pipeline release: the first version with an installable APK attach
   Google Sheets sync, Slack/Teams/Discord webhooks, WhatsApp daily report, PWA offline mode,
   Capacitor Android shell, plus `SECURITY.md` / `RECOMMENDATIONS.md`.
 
+[1.2.0]: https://github.com/glainejustin/signout/compare/v1.1.2...v1.2.0
 [1.1.2]: https://github.com/glainejustin/signout/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/glainejustin/signout/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/glainejustin/signout/compare/v1.0.0...v1.1.0

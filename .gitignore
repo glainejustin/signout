@@ -19,6 +19,12 @@ out/
 # Secrets / local overrides
 .env
 .env.local
+# The Android upload keystore and its credentials — never commit these. Losing the
+# keystore means losing the ability to update the app on Play (the upload key can be
+# reset with Google, but only if you can prove ownership).
+keystore/
+*.jks
+*.keystore
 
 # Editor
 .vscode/
