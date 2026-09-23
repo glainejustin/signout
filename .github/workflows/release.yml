@@ -118,6 +118,14 @@ jobs:
           chmod +x ./gradlew
           ./gradlew assembleDebug --no-daemon --stacktrace
 
+      # The icons step can run and the binary still ship the wrong artwork — that is
+      # how the pre-rebrand "WT" icon reached a published release. This opens the APK,
+      # decodes its launcher icons and splash screens and compares them pixel-by-pixel
+      # against the generated images, so a stale or template icon fails the release
+      # here — before anything is named, uploaded or attached to a release.
+      - name: Verify the APK ships the branded artwork
+        run: npm run verify:apk
+
       - name: Name the APK after the tag and checksum it
         id: apk
         run: |
@@ -198,4 +206,6 @@ jobs:
             echo '```'
             echo ""
             echo "Install with \`adb install -r ${{ steps.apk.outputs.file }}\` or by opening the file on the device."
+            echo ""
+            echo "Artwork verified: all 26 branded images (icons + splash) match the generated design."
           } >> "$GITHUB_STEP_SUMMARY"

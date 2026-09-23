@@ -9,6 +9,7 @@
     "start": "npx serve .",
     "build": "node scripts/build-web.mjs",
     "icons": "node scripts/generate-icons.mjs",
+    "verify:apk": "node scripts/verify-apk-branding.mjs",
     "sync": "npm run build && npx cap sync",
     "android": "npm run build && npx cap sync && npx cap open android"
   },

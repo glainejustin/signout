@@ -293,12 +293,14 @@ signout/
 │   └── pdf.js              # PDF export helper
 ├── scripts/
 │   ├── build-web.mjs       # Stages css/js/icons + index.html into dist/ for Capacitor
-│   └── generate-icons.mjs  # Draws the app icon → PWA sizes + Android launcher/splash (npm run icons)
+│   ├── generate-icons.mjs  # Draws the app icon → PWA sizes + Android launcher/splash (npm run icons)
+│   └── verify-apk-branding.mjs # Decodes a built APK and checks its icons/splash (npm run verify:apk)
 ├── tests/                  # Unit tests (node --test, zero dependencies)
 │   ├── harness.mjs         # Loads the plain <script> modules into a vm sandbox
 │   ├── db.test.mjs         # Hours maths, overtime guard, payroll CSV
 │   ├── security.test.mjs   # Sanitizers, PIN hashing, dialog fallback
-│   └── gps.test.mjs        # Haversine geofence maths
+│   ├── gps.test.mjs        # Haversine geofence maths
+│   └── branding.test.mjs   # Icon artwork contract, PNG decoder, pixel comparison
 └── icons/
     ├── icon-192.png
     └── icon-512.png
@@ -347,6 +349,21 @@ npm run test:watch
 ```
 
 The tests load the real `js/*.js` files into a Node `vm` sandbox (with a tiny `localStorage` + `document` stub), so they exercise the shipped code rather than a copy. CI runs `npm test` on every push and PR.
+
+### Verifying a release APK
+
+```bash
+npm run verify:apk   # needs a built APK + android/app/src/main/res (see Option 4)
+```
+
+Icon regressions are silent: the build can succeed and the app can still show the wrong
+launcher icon — which is how a pre-rebrand "WT" icon once shipped. This opens the APK as a
+zip, decodes the launcher / adaptive-foreground / splash PNGs and compares them
+**pixel-by-pixel** (8×8 cell means, not bytes, so PNG crunching doesn't cause false alarms)
+against the generated artwork. It also checks every splash is navy with a logo drawn on it
+and that the icons inside the APK's web payload match the committed ones. The release
+workflow runs it after `assembleDebug` and **fails before uploading anything** if they
+differ.
 
 ---
 

@@ -8,6 +8,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 <!-- New entries go here. When releasing, rename the section to `## [x.y.z] — YYYY-MM-DD`,
      bump the version in package.json + package-lock.json, and add a compare link at the bottom. -->
 
+### Added
+- **`npm run verify:apk`** (`scripts/verify-apk-branding.mjs`) — opens a built APK, decodes its launcher,
+  adaptive-foreground and splash PNGs and compares them against the generated artwork. The release
+  workflow runs it right after `assembleDebug` and **fails before naming or uploading anything**, so an
+  APK carrying stale or template icons can no longer be published. Comparisons are pixel-based (8×8 cell
+  means), so PNG crunching or a different zlib level can't fail a healthy build, while different artwork
+  always will. It also asserts each splash is navy with a logo drawn on it, that all 26 expected density
+  buckets exist on both sides, and that the icons in the APK's web payload match the committed ones.
+  Covered by `tests/branding.test.mjs` (PNG decoder, comparison tolerance, icon inventory, and that the
+  navy is identical in the verifier, `manifest.json`, `index.html` and `capacitor.config.json`).
+
 ### Changed
 - **Release notes come from the changelog.** The release workflow now fills a brand-new release's body with
   that version's `CHANGELOG.md` section (falling back to GitHub's generated notes only when a version has no
