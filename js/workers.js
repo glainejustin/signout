@@ -17,17 +17,17 @@ const Workers = (() => {
     const _list = document.getElementById('workerList');
     if (_list && !_delegated) {
       _delegated = true;
-      _list.addEventListener('click', e => {
+      _list.addEventListener('click', async e => {
         const btn = e.target.closest('[data-action]');
         if (!btn || !_list.contains(btn)) return;
         const id = btn.dataset.id;
         const act = btn.dataset.action;
         if (act === 'edit') openEditModal(id);
         else if (act === 'pdf') PDFReport.printWorkerTimesheet(id, DB.getWeekRange().from, DB.getWeekRange().to);
-        else if (act === 'leave') toggleLeave(id);
-        else if (act === 'reset-device') confirmResetDevice(id);
+        else if (act === 'leave') await toggleLeave(id);
+        else if (act === 'reset-device') await confirmResetDevice(id);
         else if (act === 'qr') showQR(id);
-        else if (act === 'delete') confirmDelete(id);
+        else if (act === 'delete') await confirmDelete(id);
       });
     }
   }
@@ -179,24 +179,41 @@ const Workers = (() => {
     if (!ok) { btn.textContent = '📡 Scan NFC Tag'; btn.disabled = false; App.showToast('NFC scan failed.'); }
   }
 
-  function toggleLeave(id) {
+  async function toggleLeave(id) {
     const w = DB.getWorkerById(id);
     if (!w) return;
     const going = !w.onLeave;
-    const note  = going ? (prompt(`Leave note for ${w.name} (optional):`) || '') : '';
-    DB.setLeave(id, going, note);
+    if (going) {
+      const note = await UI.prompt({
+        title:      `Mark ${w.name} on leave`,
+        message:    'They stay blocked from clocking in until you switch this back off.',
+        inputLabel: 'Leave note (optional)',
+        placeholder:'e.g. Approved PTO — back Monday',
+        okText:     'Mark On Leave',
+        value:      '',
+      });
+      if (note === null) return; // cancelled
+      DB.setLeave(id, true, note);
+    } else {
+      DB.setLeave(id, false, '');
+    }
     render();
     App.showToast(`${w.name} marked ${going ? 'On Leave' : 'Active'}.`);
   }
 
-  function confirmResetDevice(id) {
+  async function confirmResetDevice(id) {
     const w = DB.getWorkerById(id);
     if (!w) return;
-    if (confirm(`Reset device for "${w.name}"?\nNext login will register new device.`)) {
-      DB.resetWorkerDevice(id);
-      render();
-      App.showToast(`${w.name}'s device reset.`);
-    }
+    const ok = await UI.confirm({
+      title:   `Reset device for ${w.name}?`,
+      message: 'Their next login will register a new device. The current device lock is removed immediately.',
+      okText:  'Reset Device',
+      danger:  true,
+    });
+    if (!ok) return;
+    DB.resetWorkerDevice(id);
+    render();
+    App.showToast(`${w.name}'s device reset.`);
   }
 
   function showQR(id) {
@@ -211,15 +228,20 @@ const Workers = (() => {
     modal.classList.remove('hidden');
   }
 
-  function confirmDelete(id) {
+  async function confirmDelete(id) {
     const w = DB.getWorkerById(id);
     if (!w) return;
-    if (confirm(`Delete "${w.name}"? Logs kept.`)) {
-      DB.deleteWorker(id);
-      render();
-      Admin.refreshStats();
-      App.showToast(`${w.name} removed.`);
-    }
+    const ok = await UI.confirm({
+      title:   `Delete ${w.name}?`,
+      message: 'Their worker profile is removed. Attendance logs are kept for payroll and audit.',
+      okText:  'Delete Worker',
+      danger:  true,
+    });
+    if (!ok) return;
+    DB.deleteWorker(id);
+    render();
+    Admin.refreshStats();
+    App.showToast(`${w.name} removed.`);
   }
 
   function _initials(name) { return name.split(' ').map(p=>p[0]).join('').toUpperCase().slice(0,2); }

@@ -31,6 +31,9 @@ jobs:
           test -d css || (echo "css/ missing" && exit 1)
           echo "✅ All required PWA files present"
 
+      - name: Unit tests
+        run: npm test
+
       - name: HTMLHint
         run: npx --yes htmlhint index.html || true
 

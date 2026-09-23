@@ -71,6 +71,8 @@ const Admin = (() => {
     document.getElementById('exportRangeBtn').addEventListener('click', exportRangeCSV);
     document.getElementById('exportWeekBtn').addEventListener('click',  exportWeekCSV);
     document.getElementById('exportMonthBtn').addEventListener('click', exportMonthCSV);
+    const _btnPayroll = document.getElementById('btnExportPayroll');
+    if (_btnPayroll) _btnPayroll.addEventListener('click', exportPayrollCSV);
 
     // Overtime & Webhooks saves
     document.getElementById('btnSaveOvertime').addEventListener('click', saveOvertimeSettings);
@@ -262,6 +264,23 @@ const Admin = (() => {
     if (!from || !to) { App.showToast('Select both from and to dates.'); return; }
     _doExport(DB.getLogs_dateRange(from, to), `attendance_${from}_to_${to}.csv`);
     App.showToast('Date range exported!');
+  }
+
+  /** One-click payroll export: per-day regular / overtime / break split, with totals. */
+  function exportPayrollCSV() {
+    const from = document.getElementById('exportFrom').value || DB.getWeekRange().from;
+    const to   = document.getElementById('exportTo').value   || DB.getWeekRange().to;
+    const res  = DB.buildPayrollCsv(from, to);
+    if (!res || !res.workerCount) { App.showToast('No attendance records in this range.'); return; }
+    _downloadCsv(res.csv, res.filename);
+    DB.addAuditLog('EXPORT_PAYROLL', `Payroll CSV ${res.from} → ${res.to} (${res.workerCount} workers, ${res.dayCount} days)`);
+    App.showToast(`Payroll exported — ${res.workerCount} worker${res.workerCount > 1 ? 's' : ''}, ${res.totalPaidHours}h.`);
+  }
+
+  function _downloadCsv(csv, filename) {
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const a    = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: filename });
+    a.click(); URL.revokeObjectURL(a.href);
   }
 
   function _doExport(logs, filename) {
@@ -506,9 +525,17 @@ const Admin = (() => {
     const audio = document.getElementById('audioToggle').checked;
     const dailyOT = parseFloat(document.getElementById('dailyOTHours').value) || 8;
     const weeklyOT = parseFloat(document.getElementById('weeklyOTHours').value) || 40;
-    DB.saveSettings({ audioEnabled: audio, dailyOvertimeHours: dailyOT, weeklyOvertimeHours: weeklyOT });
+    const guardEl = document.getElementById('overtimeGuardToggle');
+    const guard = guardEl ? guardEl.checked : false;
+    DB.saveSettings({
+      audioEnabled: audio,
+      dailyOvertimeHours: dailyOT,
+      weeklyOvertimeHours: weeklyOT,
+      overtimeGuardEnabled: guard,
+    });
     AudioFX.setEnabled(audio);
-    App.showToast('Overtime & Sound settings saved!');
+    DB.addAuditLog('SAVE_OVERTIME', `Daily ${dailyOT}h / weekly ${weeklyOT}h · guard ${guard ? 'ON' : 'OFF'}`);
+    App.showToast(guard ? 'Overtime rules saved — clock-in guard is ON.' : 'Overtime & Sound settings saved!');
   }
 
   function saveWebhookSettings() {
@@ -576,6 +603,8 @@ const Admin = (() => {
     document.getElementById('audioToggle').checked       = s.audioEnabled !== false;
     document.getElementById('dailyOTHours').value        = s.dailyOvertimeHours || 8;
     document.getElementById('weeklyOTHours').value       = s.weeklyOvertimeHours || 40;
+    const _guardEl = document.getElementById('overtimeGuardToggle');
+    if (_guardEl) _guardEl.checked = !!s.overtimeGuardEnabled;
     document.getElementById('webhookToggle').checked     = !!s.webhooksEnabled;
     document.getElementById('webhookUrlInput').value     = s.webhookUrl || '';
   }
@@ -583,7 +612,7 @@ const Admin = (() => {
   function _esc(str) { const d=document.createElement('div'); d.textContent=str||''; return d.innerHTML; }
 
   return {
-    init, checkPin, switchTab, refreshStats, renderWeeklySummary, exportAuditCSV,
+    init, checkPin, switchTab, refreshStats, renderWeeklySummary, exportAuditCSV, exportPayrollCSV,
     renderAnalyticsCharts, renderLeaveApprovals, resolveLeave, renderLocations, deleteLoc, renderAuditLogs
   };
 

@@ -52,7 +52,11 @@ const PDFReport = (() => {
 
     const printWindow = window.open('', '_blank', 'width=850,height=900');
     if (!printWindow) {
-      alert('Please allow popups to generate the printable timesheet.');
+      UI.alert({
+        title:   'Popups are blocked',
+        message: 'Allow popups for SignOut, then print the timesheet again.',
+        okText:  'Got it',
+      });
       return;
     }
 

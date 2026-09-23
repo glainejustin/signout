@@ -1,0 +1,44 @@
+# Changelog
+
+All notable changes to SignOut are documented here.
+Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/).
+
+## [1.1.0] — 2026-09-23
+
+### Added
+- **Payroll CSV export** — Admin → Summary → *Payroll CSV*: one row per worker per day with gross, break,
+  regular and overtime hours (split against the daily threshold), paid hours, a TOTAL row per worker, and
+  flags for missing clock-outs. BOM-prefixed so Excel opens it cleanly; ready for Xero / QuickBooks.
+  The builder (`DB.buildPayrollCsv`) is pure and unit-tested.
+- **Overtime guard** — optional hard stop on clock-in once the daily or weekly threshold is reached
+  (Admin → Settings → Overtime & Sound). Clock-out is never blocked. Every change is written to the audit trail.
+- **Accessible in-app dialogs** — `UI.alert()` / `UI.confirm()` / `UI.prompt()`: promise-based, focus-trapped,
+  `Esc` to cancel, `aria-modal` + labelled, dark-mode aware, and rendered with `textContent` (no HTML injection).
+  All native `alert` / `confirm` / `prompt` calls in the app are now gone.
+- **Unit tests** — `npm test` runs Node's built-in runner over `tests/` (hours maths, payroll CSV, overtime guard,
+  sanitizers, PIN hashing, geofence maths, dialog fallback). No dependencies, wired into CI.
+- `CHANGELOG.md`, and payroll / guard toggles in the admin UI.
+
+### Fixed
+- **Dark mode never applied its explicit theme.** Every `[data-theme="dark"]` selector in `css/styles.css`
+  was written with escaped quotes (`[data-theme=\"dark\"]`), which is an invalid selector — so the whole dark
+  token block was dead and only the `prefers-color-scheme` fallback worked. 28 selectors repaired.
+- **PWA install pill never initialised.** Its bootstrap was an inline `<script>`, which the page CSP
+  (`script-src 'self'`) blocks. It now self-initialises from `js/pwa-install.js` (idempotent).
+- **Missing offline assets** — `audio.js`, `face.js` and `pdf.js` were not precached by the service worker.
+- `UI.alert()` resolved with `true` instead of `undefined` when confirmed.
+- Leave notes are sanitized at write time (was render-time only).
+
+### Changed
+- Service worker cache bumped to `signout-v4` (required for the fixes above to reach existing installs).
+- README: project structure, tests section, troubleshooting entries for the new behaviours.
+
+## [1.0.0] — 2026-09-08
+
+### Added
+- Initial release: NFC/QR/PIN worker clock-in, GPS geofence, selfie capture, rota & shift templates,
+  swaps, leave requests, open-shift bidding, multi-site geofences, audit trail, analytics charts,
+  Google Sheets sync, Slack/Teams/Discord webhooks, WhatsApp daily report, PWA offline mode,
+  Capacitor Android shell, plus `SECURITY.md` / `RECOMMENDATIONS.md`.
+
+[1.1.0]: https://github.com/glainejustin/signout/compare/v1.0.0...v1.1.0

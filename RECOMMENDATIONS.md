@@ -10,16 +10,40 @@
 * **P1** — Biggest user-value wins for the next 1–2 sprints
 * **P2** — Nice to have / when you have a backend
 
+✅ = shipped — see `CHANGELOG.md`
+
+---
+
+## 0.1 Shipped in v1.1.0 (2026-09-23)
+
+* ✅ **In-app dialogs** — `UI.alert/confirm/prompt` replace every native `alert/confirm/prompt`
+  (focus trap, `Esc`, `aria-modal`, dark-mode aware, no HTML injection).
+* ✅ **Payroll CSV export** — per worker / per day gross, break, regular, overtime, paid hours + totals.
+* ✅ **Overtime guard** — optional hard block on clock-in at the daily/weekly threshold (clock-out never blocked).
+* ✅ **Unit tests** — `npm test` (Node's runner, zero dependencies) over hours maths, payroll CSV, guard,
+  sanitizers, PIN hashing, geofence maths — wired into CI.
+* ✅ **Dark mode bug** — the escaped `[data-theme=\"dark\"]` selectors (28 of them) never matched; repaired.
+* ✅ **PWA install pill** — its inline bootstrap was CSP-blocked; now self-initialises from JS.
+* ✅ **Offline gaps** — `audio.js`, `face.js`, `pdf.js` added to the service-worker precache; cache → `signout-v4`.
+* ✅ **Versioning** — `CHANGELOG.md` + SemVer bump to `1.1.0`.
+
+### Next best three
+
+1. **IndexedDB for selfies** (P1) — `localStorage` is 5 MB; photos can silently wipe the DB.
+2. **Bulk worker import** (P1) — CSV upload with duplicate checks, hashing PINs on import.
+3. **Smart forgot clock-out** (P1) — auto-close an open shift at end-of-day and flag it for approval
+   instead of inflating hours (the payroll CSV already flags them).
+
 ---
 
 ## 1. Security — Finish the Audit
 
 | # | Title | Effort | Why it matters |
 |---|---|---|---|
-| P0 | **Hash all PINs** — `SHA-256(pin + per-worker salt)` via `crypto.subtle` | 1 day | Plain PINs in `localStorage` = instant impersonation via DevTools |
-| P0 | **Admin PIN lockout** — 5 fails → 2 min cooldown, exponential | 2 h | 4-digit PIN brute-forces in seconds |
-| P0 | **URL allow-list** for Sheets (`script.google.com`) & webhooks + require Admin PIN to change | 2 h | Prevents data exfiltration by pasted URL |
-| P0 | **Sanitize at write time** — strip `< > " ' \`` and cap lengths for names/roles/notes | 2 h | Defense-in-depth beyond `_esc()` at render |
+| ✅ | **Hash all PINs** — SHA-256 via `crypto.subtle` (`js/security.js` `Crypto`) | done | Plain PINs in `localStorage` = instant impersonation via DevTools |
+| ✅ | **Admin PIN lockout** — 5 fails → 15 min cooldown | done | 4-digit PIN brute-forces in seconds |
+| ✅ | **URL allow-list** for Sheets (`script.google.com`) & webhooks | done | Prevents data exfiltration by pasted URL |
+| ✅ | **Sanitize at write time** — strip `< > " ' \``, cap lengths (incl. leave notes) | done | Defense-in-depth beyond `_esc()` at render |
 | P1 | **Move selfie blobs to IndexedDB** + quota guard | 1 day | `localStorage` is 5 MB — selfies can silently wipe your DB |
 | P1 | **Encrypt export** — password-protect JSON backup (`AES-GCM`) | 1 day | Backups contain every PIN + photo |
 
@@ -33,13 +57,13 @@ See `SECURITY.md` for full findings (C1…L4).
 
 * **Rota notifications** — push when your shift changes or a swap is approved/denied.
 * **Open-shift bidding UX** — workers see & bid from `My Schedule` (table exists but not wired); admin sees bid list and assigns.
-* **Overtime guard** — hard block "clock in" when weekly cap reached, not just a webhook alert.
-* **Finish replacing `prompt`/`confirm`/`alert`** — custom modals for leave notes, device reset, delete. (Helper already sketched in `security.js`.)
+* ✅ **Overtime guard** — hard block "clock in" when the daily/weekly cap is reached (Settings → Overtime & Sound).
+* ✅ **Replace `prompt`/`confirm`/`alert`** — accessible `UI.confirm/prompt/alert` with focus trap, `Esc` and ARIA labels.
 
 ### P1 — High-Value Additions
 
 * **Roles & permissions** — `Admin`, `Manager`, `Worker`. Managers can edit rota but not delete workers or change admin PIN.
-* **Payroll export** — one CSV with `regular / overtime / break / total` per worker, ready for Xero/QuickBooks.
+* ✅ **Payroll export** — CSV with `regular / overtime / break / paid` per worker per day, plus totals (Summary tab).
 * **Bulk import** — CSV upload of workers (validates duplicates, hashes PINs on import).
 * **Smart "forgot clock-out"** — auto close an open shift at end-of-day + flag for manager approval instead of silently inflating hours.
 * **Kiosk hardening** — fullscreen lock, screensaver after 30 s, auto-return to worker picker, disable browser back.
@@ -79,7 +103,10 @@ Browser (PWA)  ⇄  Apps Script / Cloud Function  ⇄  DB (Firestore / Supabase 
 
 ## 4. UX / Accessibility
 
-* **A11y pass** — `aria-label` on every icon button (`✏️`, `🗑️`, `📷`), focus trap in modals, `Esc` closes modal, keyboard-navigable rota.
+* ✅ **Focus trap + `Esc`** — dialogs (`UI.*`) are focus-trapped, `Esc`-dismissible and labelled; dangerous
+  actions focus *Cancel* and never submit on backdrop click or `Enter`.
+* **A11y pass (remaining)** — the older static modals (worker editor, rota cell, swap) still need the same
+  treatment: labelled icon buttons, focus trap, `Esc` to close.
 * **Empty states** — every list needs a helpful empty state with a CTA (already partly done; extend to Rota, Analytics, Audit).
 * **Loading & error states** — GPS `📍 Checking…` is good; replicate for Sheets sync, webhook test, photo capture.
 * **Mobile first** — the CSS is responsive, but test the rota table on a 320 px phone — consider a card view under 600 px.
@@ -90,10 +117,12 @@ Browser (PWA)  ⇄  Apps Script / Cloud Function  ⇄  DB (Firestore / Supabase 
 ## 5. Engineering Quality
 
 * **Add Prettier + ESLint** — `npx eslint js/*.js` in CI; fix `innerHTML` without escaping as an error.
-* **Unit tests** — `db.calcHours`, `GPS.distanceMeters`, `Device.getFingerprint` are pure enough to test in Vitest (no DOM).
+* ✅ **Unit tests** — `npm test` (Node's built-in runner, zero dependencies) covers `calcHours`, `dayStats`,
+  the payroll CSV, the overtime guard, `GPS.distanceMeters`, `Sanitize.*` and `Crypto.verifyPin`.
 * **E2E** — Playwright: login → clock IN → break → clock OUT → assert hours, even in offline mode (`context.setOffline(true)`).
 * **TypeScript (incremental)** — `jsconfig.json` + `// @ts-check` + `JSDoc` types gives 80 % of the benefit with zero build step.
-* **Versioning** — tag releases (`v1.0.0`, `v1.1.0`) and keep a `CHANGELOG.md`.
+* ✅ **Versioning** — `CHANGELOG.md` added and the version bumped to `1.1.0` (still worth tagging `v1.1.0`),
+  and the service worker cache version must be bumped on every release.
 
 ---
 

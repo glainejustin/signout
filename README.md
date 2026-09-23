@@ -233,13 +233,14 @@ Add extra sites in **Admin → Sites → + Add Site**.
 signout/
 ├── index.html              # Single-page app (all views + modals)
 ├── manifest.json           # PWA manifest
-├── service-worker.js       # Offline cache (signout-v1)
+├── service-worker.js       # Offline cache — bump CACHE (signout-v4…) on every release
 ├── capacitor.config.json   # Capacitor Android config (com.signout.attendance)
 ├── google-apps-script.js   # Apps Script for Sheets sync
 ├── css/
 │   └── styles.css          # All styling
 ├── js/
-│   ├── db.js               # LocalStorage DB — workers, logs, rota, audit, locations, backup
+│   ├── security.js         # Sanitizers, SHA-256 PIN hashing, allow-lists, in-app dialogs (UI)
+│   ├── db.js               # LocalStorage DB — workers, logs, rota, audit, locations, backup, payroll
 │   ├── app.js              # Main controller — login, clock, kiosk, offline sync
 │   ├── admin.js            # Admin dashboard — stats, summary, exports, settings
 │   ├── workers.js          # Worker CRUD + device reset
@@ -256,6 +257,11 @@ signout/
 │   ├── device.js           # Fingerprint + short ID
 │   ├── pwa-install.js      # beforeinstallprompt pill
 │   └── pdf.js              # PDF export helper
+├── tests/                  # Unit tests (node --test, zero dependencies)
+│   ├── harness.mjs         # Loads the plain <script> modules into a vm sandbox
+│   ├── db.test.mjs         # Hours maths, overtime guard, payroll CSV
+│   ├── security.test.mjs   # Sanitizers, PIN hashing, dialog fallback
+│   └── gps.test.mjs        # Haversine geofence maths
 └── icons/
     ├── icon-192.png
     └── icon-512.png
@@ -294,6 +300,19 @@ signout_locations, signout_leave_reqs, signout_open_shifts, signout_admin_lock
 
 ---
 
+## 🧪 Tests
+
+Zero dependencies — Node's built-in test runner:
+
+```bash
+npm test          # run everything in tests/
+npm run test:watch
+```
+
+The tests load the real `js/*.js` files into a Node `vm` sandbox (with a tiny `localStorage` + `document` stub), so they exercise the shipped code rather than a copy. CI runs `npm test` on every push and PR.
+
+---
+
 ## 🧪 Troubleshooting
 
 | Problem | Fix |
@@ -306,6 +325,8 @@ signout_locations, signout_leave_reqs, signout_open_shifts, signout_admin_lock
 | Wrong device error | Admin → Workers → Reset Device for that worker |
 | GPS blocked incorrectly | Increase radius or re-capture location outdoors |
 | Photos not saving | Selfie requires camera permission over HTTPS |
+| Old UI after an update | New assets are cached — bump `CACHE` in `service-worker.js`, then hard-reload |
+| "Overtime limit reached" on clock-in | Settings → Overtime & Sound → turn off *Block clock-in at overtime limit* |
 
 ---
 

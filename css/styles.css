@@ -65,8 +65,8 @@
   --space-xs:4px; --space-sm:8px; --space-md:16px; --space-lg:24px; --space-xl:32px; --space-2xl:48px;
 }
 
-/* ── Explicit theme — light is default, dark via [data-theme=\"dark\"] — */
-html[data-theme=\"dark\"]{
+/* ── Explicit theme — light is default, dark via [data-theme="dark"] — */
+html[data-theme="dark"]{
   --bg:#0b0f1a;
   --bg-soft:#111827;
   --card:#1e2535;
@@ -82,32 +82,32 @@ html[data-theme=\"dark\"]{
   --shadow:0 4px 12px rgba(0,0,0,.45);
   --shadow-md:0 8px 24px rgba(0,0,0,.5);
 }
-html[data-theme=\"dark\"] .login-search,
-html[data-theme=\"dark\"] .modal-input,
-html[data-theme=\"dark\"] .sheets-input,
-html[data-theme=\"dark\"] .filter-select,
-html[data-theme=\"dark\"] .filter-date,
-html[data-theme=\"dark\"] .pin-input,
-html[data-theme=\"dark\"] .num-btn,
-html[data-theme=\"dark\"] .mini-input{
+html[data-theme="dark"] .login-search,
+html[data-theme="dark"] .modal-input,
+html[data-theme="dark"] .sheets-input,
+html[data-theme="dark"] .filter-select,
+html[data-theme="dark"] .filter-date,
+html[data-theme="dark"] .pin-input,
+html[data-theme="dark"] .num-btn,
+html[data-theme="dark"] .mini-input{
   background:var(--card);color:var(--text);border-color:var(--border);
 }
-html[data-theme=\"dark\"] .worker-pick-btn{background:var(--bg-soft);border-color:var(--border);}
-html[data-theme=\"dark\"] .worker-pick-btn:hover{background:#1e293b;border-color:var(--primary-light);}
-html[data-theme=\"dark\"] .log-table tbody tr:hover{background:#1e293b;}
-html[data-theme=\"dark\"] .stat-card,
-html[data-theme=\"dark\"] .settings-section,
-html[data-theme=\"dark\"] .my-log-section,
-html[data-theme=\"dark\"] .status-card,
-html[data-theme=\"dark\"] .analytics-card,
-html[data-theme=\"dark\"] .leave-card,
-html[data-theme=\"dark\"] .location-card{background:var(--card);}
-html[data-theme=\"dark\"] .log-table{background:var(--card);}
-html[data-theme=\"dark\"] .log-table thead th{background:#0f172a;color:#e2e8f0;}
-html[data-theme=\"dark\"] .rota-table thead th{background:#0f172a;}
-html[data-theme=\"dark\"] .login-card{background:rgba(30,37,53,.96); border-color:rgba(255,255,255,.08);}
-html[data-theme=\"dark\"] .worker-dash-header{background:rgba(15,23,42,.78);}
-html[data-theme=\"dark\"] .page-header{background:rgba(15,23,42,.98);}
+html[data-theme="dark"] .worker-pick-btn{background:var(--bg-soft);border-color:var(--border);}
+html[data-theme="dark"] .worker-pick-btn:hover{background:#1e293b;border-color:var(--primary-light);}
+html[data-theme="dark"] .log-table tbody tr:hover{background:#1e293b;}
+html[data-theme="dark"] .stat-card,
+html[data-theme="dark"] .settings-section,
+html[data-theme="dark"] .my-log-section,
+html[data-theme="dark"] .status-card,
+html[data-theme="dark"] .analytics-card,
+html[data-theme="dark"] .leave-card,
+html[data-theme="dark"] .location-card{background:var(--card);}
+html[data-theme="dark"] .log-table{background:var(--card);}
+html[data-theme="dark"] .log-table thead th{background:#0f172a;color:#e2e8f0;}
+html[data-theme="dark"] .rota-table thead th{background:#0f172a;}
+html[data-theme="dark"] .login-card{background:rgba(30,37,53,.96); border-color:rgba(255,255,255,.08);}
+html[data-theme="dark"] .worker-dash-header{background:rgba(15,23,42,.78);}
+html[data-theme="dark"] .page-header{background:rgba(15,23,42,.98);}
 @media(prefers-color-scheme:dark){
   html:not([data-theme]){ color-scheme: dark; }
   html:not([data-theme]) body{ background:#0b0f1a; color:#f1f5f9; }
@@ -621,6 +621,33 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .modal-actions{display:flex; gap:10px; margin-top:6px;}
 .modal-actions .btn{flex:1; border-radius:999px;}
 
+/* ── In-app dialogs (UI.alert / UI.confirm / UI.prompt) ──
+   Replace native window.alert/confirm/prompt: themeable, keyboard-trapped,
+   screen-reader labelled, and never block the JS thread. */
+.ui-dialog-backdrop{
+  position:fixed; inset:0; z-index:400; padding:20px;
+  background:rgba(15,23,42,.58); backdrop-filter:blur(8px) saturate(1.1);
+  display:flex; align-items:center; justify-content:center;
+  animation:fadeIn .16s ease;
+}
+.ui-dialog{
+  background:var(--card); border:1px solid var(--border); border-radius:16px;
+  padding:22px 20px; width:100%; max-width:420px; box-shadow:var(--shadow-xl);
+  max-height:88vh; overflow-y:auto; animation:modalIn .2s cubic-bezier(.16,1,.3,1);
+}
+.ui-dialog-danger{border-top:3px solid var(--red);}
+.ui-dialog-title{font-size:16.5px; font-weight:800; letter-spacing:-.25px; margin-bottom:8px; color:var(--text);}
+.ui-dialog-message{font-size:13.5px; line-height:1.6; font-weight:500; color:var(--muted); margin-bottom:14px; white-space:pre-line;}
+.ui-dialog-label{display:block; font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); margin-bottom:6px;}
+.ui-dialog-input{
+  width:100%; padding:11px 12px; border:1px solid var(--border); border-radius:8px;
+  font-size:13.5px; font-weight:500; color:var(--text); background:var(--bg); outline:none;
+  transition:border-color .15s, box-shadow .15s;
+}
+.ui-dialog-input:focus{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-ring); background:var(--card);}
+.ui-dialog-actions{display:flex; gap:10px; margin-top:18px;}
+.ui-dialog-actions .btn{flex:1; border-radius:999px;}
+
 /* Selfie / QR */
 .selfie-box{text-align:center;}
 .selfie-video,.selfie-preview{width:100%; max-width:340px; border-radius:14px; margin:12px 0; border:1px solid var(--border); background:#000;}
@@ -696,6 +723,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .btn-out{background:var(--card); color:var(--text); border-color:var(--border-strong);}
 .btn-out:hover{background:var(--bg-soft); border-color:var(--border-strong); transform:translateY(-1px); box-shadow:var(--shadow-sm);}
 .btn-sm{padding:7px 12px; font-size:12px;}
+.btn-danger{background:var(--red); color:#fff; border-color:var(--red); box-shadow:0 4px 12px rgba(220,38,38,.18);}
+.btn-danger:hover{background:var(--red-dark); border-color:var(--red-dark); transform:translateY(-1px);}
 
 /* Animations */
 @keyframes shake{0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)}}
@@ -963,7 +992,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .page-header .theme-pill{ background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.12); }
 .worker-dash-header .theme-pill{ background:var(--card); border-color:var(--border); color:var(--muted); box-shadow:var(--shadow-xs); }
 .worker-dash-header .theme-pill:hover{ border-color:var(--border-strong); color:var(--text); }
-html[data-theme=\"dark\"] .worker-dash-header .theme-pill{ background:var(--card); border-color:var(--border); color:var(--muted); }
+html[data-theme="dark"] .worker-dash-header .theme-pill{ background:var(--card); border-color:var(--border); color:var(--muted); }
 .login-theme-wrap{ display:flex; justify-content:center; margin-top:6px; }
 .page-header::before{
   content:''; position:absolute; inset:0 0 auto 0; height:1px;
@@ -995,4 +1024,4 @@ html[data-theme=\"dark\"] .worker-dash-header .theme-pill{ background:var(--card
 }
 .rota-grid-container::-webkit-scrollbar{ height:8px; }
 .rota-grid-container::-webkit-scrollbar-thumb{ background:var(--border-strong); border-radius:999px; }
-html[data-theme=\"dark\"] .trust-pill{ background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.10); }
+html[data-theme="dark"] .trust-pill{ background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.10); }

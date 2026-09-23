@@ -428,12 +428,172 @@ const DB = (() => {
     return calcHours(getLogsForWorkerRange(workerId, from, to));
   }
 
+  /**
+   * Breakdown of a single day's logs (same state machine as calcHours, but keeps
+   * gross and break time separate so payroll can report them independently).
+   *   { grossH, breakH, netH, firstIn, lastOut, missingOut }
+   */
+  function dayStats(logs) {
+    const sorted = [...(logs || [])].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    let grossMs = 0, breakMs = 0, openBreakMs = 0;
+    let shiftStart = null, breakStart = null, missingOut = false;
+    let firstIn = null, lastOut = null;
+
+    for (const l of sorted) {
+      if (l.action === 'IN') {
+        if (shiftStart) missingOut = true;   // an earlier shift was never closed
+        shiftStart = new Date(l.timestamp);
+        if (!firstIn) firstIn = shiftStart;
+        openBreakMs = 0; breakStart = null;
+      } else if (l.action === 'BREAK_START' && shiftStart) {
+        breakStart = new Date(l.timestamp);
+      } else if (l.action === 'BREAK_END' && breakStart) {
+        openBreakMs += new Date(l.timestamp) - breakStart;
+        breakStart = null;
+      } else if (l.action === 'OUT' && shiftStart) {
+        const end = new Date(l.timestamp);
+        let b = openBreakMs;
+        if (breakStart) { b += end - breakStart; breakStart = null; }
+        const g = Math.max(0, end - shiftStart);
+        grossMs += g;
+        breakMs += Math.min(b, g);   // a break can never exceed the shift itself
+        lastOut = end;
+        shiftStart = null; openBreakMs = 0;
+      }
+    }
+    if (shiftStart) missingOut = true;   // still clocked in at end of day
+
+    return {
+      grossH:     grossMs / 3600000,
+      breakH:     breakMs / 3600000,
+      netH:       Math.max(0, grossMs - breakMs) / 3600000,
+      firstIn, lastOut, missingOut,
+    };
+  }
+
+  /**
+   * Overtime guard — consulted before a clock-IN.
+   * Blocks the punch when the worker has already hit the daily or weekly threshold
+   * AND the admin enabled the guard. Clock-OUT is never blocked: people must always
+   * be able to leave.
+   */
+  function checkOvertimeGuard(workerId) {
+    const s = getSettings();
+    if (!s.overtimeGuardEnabled) return { allowed: true, enabled: false };
+
+    const dayCap  = Number(s.dailyOvertimeHours)  || 0;
+    const weekCap = Number(s.weeklyOvertimeHours) || 0;
+    const dayH    = calcHoursToday(workerId);
+    const weekH   = calcHoursWeek(workerId);
+    const fmtH    = h => `${Math.floor(h)}h ${Math.round((h - Math.floor(h)) * 60)}m`;
+
+    if (weekCap > 0 && weekH >= weekCap) {
+      return {
+        allowed: false, enabled: true, scope: 'week', hours: weekH, cap: weekCap,
+        message: `Weekly limit reached — ${fmtH(weekH)} of ${weekCap}h already recorded. Ask your manager to adjust the rota before clocking in.`,
+      };
+    }
+    if (dayCap > 0 && dayH >= dayCap) {
+      return {
+        allowed: false, enabled: true, scope: 'day', hours: dayH, cap: dayCap,
+        message: `Daily limit reached — ${fmtH(dayH)} of ${dayCap}h already recorded. Ask your manager to approve overtime before clocking in.`,
+      };
+    }
+    return { allowed: true, enabled: true, dayHours: dayH, weekHours: weekH };
+  }
+
+  // ─────────────────────────────────────────
+  // PAYROLL EXPORT (CSV)
+  // ─────────────────────────────────────────
+
+  const PAYROLL_HEADER = [
+    'Worker', 'Role', 'Date', 'Shift Start', 'Shift End',
+    'Gross Hours', 'Break Hours', 'Regular Hours', 'Overtime Hours', 'Paid Hours', 'Notes',
+  ];
+
+  function _round2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
+  function _fmtClock(d) { return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }); }
+
+  /** RFC-4180 style cell: always quoted, inner quotes doubled. */
+  function csvCell(v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }
+  function csvRows(rows) { return rows.map(r => r.map(csvCell).join(',')).join('\n'); }
+
+  /**
+   * Build a payroll-ready CSV: one row per worker per day, plus a TOTAL row per
+   * worker. Each day is split into regular vs overtime against the daily
+   * threshold so the file drops straight into Xero / QuickBooks style tools.
+   * Pure (no DOM, no downloads) → unit-tested in tests/.
+   */
+  function buildPayrollCsv(from, to) {
+    const re = /^\d{4}-\d{2}-\d{2}$/;
+    if (!re.test(String(from)) || !re.test(String(to))) {
+      const wk = _weekRange(); from = wk.from; to = wk.to;
+    }
+    if (from > to) { const t = from; from = to; to = t; }
+
+    const s        = getSettings();
+    const dailyCap = Number(s.dailyOvertimeHours) || 8;
+    const rows     = [PAYROLL_HEADER];
+    let workerCount = 0, dayCount = 0, totalPaid = 0, openShifts = 0;
+
+    getWorkers().forEach(w => {
+      const logs = getLogsForWorkerRange(w.id, from, to);
+      if (!logs.length) return;
+
+      const byDay = {};
+      logs.forEach(l => {
+        const d = String(l.timestamp).slice(0, 10);
+        (byDay[d] = byDay[d] || []).push(l);
+      });
+
+      let wReg = 0, wOT = 0, wBreak = 0, wPaid = 0;
+      Object.keys(byDay).sort().forEach(d => {
+        const st   = dayStats(byDay[d]);
+        const paid = _round2(st.netH);
+        const reg  = _round2(Math.min(paid, dailyCap));
+        const ot   = _round2(Math.max(0, paid - dailyCap));
+
+        const notes = [];
+        if (st.missingOut) { notes.push('Missing clock-out'); openShifts++; }
+        if (ot > 0) notes.push('Overtime');
+
+        rows.push([
+          w.name, w.role, d,
+          st.firstIn ? _fmtClock(st.firstIn) : '',
+          st.lastOut ? _fmtClock(st.lastOut) : '',
+          _round2(st.grossH), _round2(st.breakH), reg, ot, paid,
+          notes.join('; '),
+        ]);
+
+        wReg += reg; wOT += ot; wBreak += st.breakH; wPaid += paid; dayCount++;
+      });
+
+      rows.push([
+        w.name, w.role, 'TOTAL', '', '', '',
+        _round2(wBreak), _round2(wReg), _round2(wOT), _round2(wPaid), '',
+      ]);
+      rows.push(new Array(PAYROLL_HEADER.length).fill(''));
+
+      workerCount++;
+      totalPaid += wPaid;
+    });
+
+    return {
+      csv:            '\uFEFF' + csvRows(rows),
+      filename:       `payroll_${from}_to_${to}.csv`,
+      from, to, rows,
+      workerCount, dayCount, openShifts,
+      totalPaidHours: _round2(totalPaid),
+    };
+  }
+
   // ─────────────────────────────────────────
   // LEAVE MANAGEMENT
   // ─────────────────────────────────────────
 
   function setLeave(workerId, onLeave, note) {
-    updateWorker(workerId, { onLeave: !!onLeave, leaveNote: note || '' });
+    const clean = (typeof Sanitize !== 'undefined' ? Sanitize.strip(note, 120) : String(note || '').trim().slice(0, 120));
+    updateWorker(workerId, { onLeave: !!onLeave, leaveNote: onLeave ? clean : '' });
   }
 
   // ─────────────────────────────────────────
@@ -460,6 +620,7 @@ const DB = (() => {
       kioskTimeoutSec:      15,
       dailyOvertimeHours:   8,
       weeklyOvertimeHours:  40,
+      overtimeGuardEnabled: false,
       webhookUrl:           '',
       webhooksEnabled:      false,
       departments:          ['Sales', 'Kitchen', 'Service', 'Warehouse', 'Admin', 'Maintenance'],
@@ -979,7 +1140,11 @@ const DB = (() => {
     // Logs
     getLogs, addLog, getLogs_dateRange,
     getLogsForWorker, getLogsForWorkerToday, getLogsForWorkerRange,
-    markLogsSynced, calcHours, calcHoursToday, calcHoursWeek,
+    markLogsSynced, calcHours, calcHoursToday, calcHoursWeek, dayStats,
+    // Overtime guard
+    checkOvertimeGuard,
+    // Payroll
+    buildPayrollCsv, csvCell,
     // Settings
     getSettings, saveSettings,
     // Helpers

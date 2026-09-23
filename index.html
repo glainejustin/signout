@@ -301,7 +301,9 @@
         <div class="export-quick-row">
           <button class="btn btn-in" id="exportWeekBtn">This Week</button>
           <button class="btn btn-in" id="exportMonthBtn">This Month</button>
+          <button class="btn btn-in" id="btnExportPayroll">Payroll CSV</button>
         </div>
+        <p class="settings-desc" style="margin-top:8px;">Payroll CSV splits regular vs overtime hours per day (uses the range above, or this week) — ready for Xero / QuickBooks.</p>
       </div>
       <div class="log-table-wrap">
         <table class="log-table">
@@ -474,6 +476,11 @@
             <label class="coord-label" for="weeklyOTHours">Weekly OT threshold (hrs)</label>
             <input type="number" id="weeklyOTHours" value="40" min="1" max="168" class="sheets-input" />
           </div>
+        </div>
+        <p class="settings-desc" style="margin-top:12px;">Overtime guard — block clock-ins once a threshold above is reached. Clock-out is never blocked.</p>
+        <div class="toggle-row">
+          <label class="toggle-label" for="overtimeGuardToggle">Block clock-in at overtime limit</label>
+          <label class="toggle-switch"><input type="checkbox" id="overtimeGuardToggle" /><span class="toggle-slider"></span></label>
         </div>
         <button class="btn btn-in" id="btnSaveOvertime" style="width:100%;margin-top:10px;">Save Overtime Rules</button>
       </div>
@@ -827,7 +834,6 @@
 <script src="js/admin.js"></script>
 <script src="js/app.js"></script>
 <script src="js/pwa-install.js"></script>
-<script>try{ if(typeof PWAInstall!=='undefined') PWAInstall.init(); }catch(e){}</script>
 <script src="js/sw-register.js"></script>
 </body>
 </html>

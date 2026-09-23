@@ -403,6 +403,17 @@ const App = (() => {
     if (action === 'BREAK_START' && (!w.clockedIn || w.onBreak)) { showToast('Cannot start break.'); return; }
     if (action === 'BREAK_END'   && !w.onBreak) { showToast('Not currently on break.'); return; }
 
+    // Overtime guard — blocks a clock-IN once the daily/weekly threshold is hit.
+    // Clock-OUT is never blocked: people must always be able to leave.
+    if (action === 'IN' && typeof DB.checkOvertimeGuard === 'function') {
+      const guard = DB.checkOvertimeGuard(w.id);
+      if (!guard.allowed) {
+        AudioFX.playError();
+        UI.alert({ title: 'Overtime limit reached', message: guard.message, okText: 'Got it' });
+        return;
+      }
+    }
+
     // GPS check
     const btnMap = { IN: 'btnClockIn', OUT: 'btnClockOut', BREAK_START: 'btnBreakStart', BREAK_END: 'btnBreakEnd' };
     const clockBtn = document.getElementById(btnMap[action]);

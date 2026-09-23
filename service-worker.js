@@ -1,4 +1,6 @@
-const CACHE = 'signout-v3';
+// NOTE: bump CACHE (signout-v4 → v5 …) on every release, or clients keep the old
+// cached CSS/JS forever (the fetch handler is cache-first).
+const CACHE = 'signout-v4';
 const ASSETS = [
   './', './index.html', './manifest.json',
   './css/styles.css',
@@ -6,6 +8,7 @@ const ASSETS = [
   './js/device.js', './js/gps.js', './js/db.js', './js/nfc.js',
   './js/qr.js', './js/selfie.js', './js/notify.js', './js/webhooks.js',
   './js/workers.js', './js/logs.js', './js/rota.js', './js/admin.js', './js/app.js',
+  './js/audio.js', './js/face.js', './js/pdf.js',
 ];
 
 self.addEventListener('install', e => {

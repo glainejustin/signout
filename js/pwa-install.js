@@ -5,8 +5,11 @@
 const PWAInstall = (() => {
   let deferred = null;
   let banner = null;
+  let inited = false;
 
   function init() {
+    if (inited) return;   // init() is also called by App.init() — keep listeners single
+    inited = true;
     window.addEventListener('beforeinstallprompt', e => {
       e.preventDefault();
       deferred = e;
@@ -67,3 +70,10 @@ const PWAInstall = (() => {
 
   return { init };
 })();
+
+// Self-init: the banner only needs listeners registered before the browser fires
+// `beforeinstallprompt`. Doing it here (instead of an inline <script>) keeps the
+// page free of inline scripts, which the CSP (`script-src 'self'`) blocks anyway.
+if (typeof document !== 'undefined' && document.body) {
+  try { PWAInstall.init(); } catch {}
+}

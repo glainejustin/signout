@@ -302,9 +302,15 @@ const Rota = (() => {
     editingShift = null;
   }
 
-  function deleteShiftFromModal() {
+  async function deleteShiftFromModal() {
     if (!editingShift) return;
-    if (!confirm('Delete this shift template? Existing rota cells using it will be cleared.')) return;
+    const ok = await UI.confirm({
+      title:   'Delete this shift template?',
+      message: 'Existing rota cells using it will be cleared.',
+      okText:  'Delete Shift',
+      danger:  true,
+    });
+    if (!ok) return;
     // Clear all rota cells using this shift
     const rotas = DB.getRotas ? null : null; // access via DB internals via setRotaCell
     DB.deleteShiftTemplate(editingShift);
@@ -319,26 +325,46 @@ const Rota = (() => {
   // TEMPLATE SAVE / LOAD / COPY
   // ─────────────────────────────────────────
 
-  function saveTemplate() {
-    const name = prompt('Save this week as template name:');
-    if (!name || !name.trim()) return;
-    DB.saveRotaTemplate(currentWeek, name.trim());
+  async function saveTemplate() {
+    const raw = await UI.prompt({
+      title:       'Save this week as a template',
+      message:     'Templates can be re-loaded into any future week.',
+      inputLabel:  'Template name',
+      placeholder: 'e.g. Holiday week',
+      okText:      'Save Template',
+      maxLength:   40,
+    });
+    if (raw === null) return;
+    const name = (typeof Sanitize !== 'undefined' ? Sanitize.strip(raw, 40) : raw.trim());
+    if (!name) { App.showToast('Template name required.'); return; }
+    DB.saveRotaTemplate(currentWeek, name);
     _refreshTemplateDropdown();
-    App.showToast(`Template "${name.trim()}" saved!`);
+    App.showToast(`Template "${name}" saved!`);
   }
 
-  function loadTemplate() {
+  async function loadTemplate() {
     const sel  = document.getElementById('rotaTplSelect').value;
     if (!sel) { App.showToast('Select a template first.'); return; }
-    if (!confirm(`Load template "${sel}" into this week? Current rota will be overwritten.`)) return;
+    const ok = await UI.confirm({
+      title:   `Load template "${sel}"?`,
+      message: 'This week\u2019s rota will be overwritten. This cannot be undone.',
+      okText:  'Load Template',
+      danger:  true,
+    });
+    if (!ok) return;
     DB.loadRotaTemplate(sel, currentWeek);
     renderGrid();
     App.showToast(`Template "${sel}" loaded.`);
   }
 
-  function copyToNextWeek() {
+  async function copyToNextWeek() {
     const nextWeek = _addDays(currentWeek, 7);
-    if (!confirm(`Copy this week's rota to ${_fmtDate(nextWeek)}?`)) return;
+    const ok = await UI.confirm({
+      title:   'Copy this week forward?',
+      message: `This week\u2019s rota will be copied into the week of ${_fmtDate(nextWeek)}.`,
+      okText:  'Copy Rota',
+    });
+    if (!ok) return;
     DB.copyWeekRota(currentWeek, nextWeek);
     App.showToast('Rota copied to next week!');
   }
