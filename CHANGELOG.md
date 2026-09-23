@@ -5,6 +5,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+<!-- New entries go here. When releasing, rename the section to `## [x.y.z] — YYYY-MM-DD`,
+     bump the version in package.json + package-lock.json, and add a compare link at the bottom. -->
+
+## [1.1.2] — 2026-09-23
+
+Branding patch: the app icon, launcher icon and launch splash are SignOut's own now, and the APK
+finally ships them.
+
 ### Added
 - **`npm run icons`** (`scripts/generate-icons.mjs`) — draws the SignOut mark (a stopwatch) as signed distance
   fields and exports it with zero dependencies: PWA icons, an Apple touch icon and a favicon, plus, with
@@ -29,9 +37,6 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 - `manifest.json` `background_color`/`theme_color` and the Capacitor splash colour were still the pre-rebrand
   indigo `#4f46e5`; now `#0F172A`, matching `<meta name="theme-color">`.
 - Service worker precaches the PWA icons (cache → `signout-v5`).
-
-<!-- New entries go here. When releasing, rename the section to `## [x.y.z] — YYYY-MM-DD`,
-     bump the version in package.json + package-lock.json, and add a compare link at the bottom. -->
 
 ## [1.1.1] — 2026-09-23
 
@@ -101,5 +106,6 @@ Android build pipeline release: the first version with an installable APK attach
   Google Sheets sync, Slack/Teams/Discord webhooks, WhatsApp daily report, PWA offline mode,
   Capacitor Android shell, plus `SECURITY.md` / `RECOMMENDATIONS.md`.
 
+[1.1.2]: https://github.com/glainejustin/signout/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/glainejustin/signout/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/glainejustin/signout/compare/v1.0.0...v1.1.0
