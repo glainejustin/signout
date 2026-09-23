@@ -5,6 +5,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+### Added
+- **Stable APK download URL** — every release now also publishes `signout-latest.apk` (with its own `.sha256`)
+  alongside the versioned `signout-<tag>.apk`, so `releases/latest/download/signout-latest.apk` keeps working
+  as versions move.
+- README: a download badge, a dynamic latest-release badge, and a one-liner install + checksum-verify block
+  in the Android section.
+
 <!-- New entries go here. When releasing, rename the section to `## [x.y.z] — YYYY-MM-DD`,
      bump the version in package.json + package-lock.json, and add a compare link at the bottom. -->
 

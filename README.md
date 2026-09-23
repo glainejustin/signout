@@ -10,6 +10,8 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/glainejustin/signout/releases/latest/download/signout-latest.apk"><img src="https://img.shields.io/badge/APK-Download%20latest-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Download latest APK" /></a>
+  <a href="https://github.com/glainejustin/signout/releases/latest"><img src="https://img.shields.io/github/v/release/glainejustin/signout?style=flat-square&label=release&color=0F172A" alt="Latest release" /></a>
   <img src="https://img.shields.io/badge/PWA-Ready-1a73e8?style=flat-square&logo=pwa&logoColor=white" alt="PWA Ready" />
   <img src="https://img.shields.io/badge/Offline-First-009624?style=flat-square" alt="Offline First" />
   <img src="https://img.shields.io/badge/NFC-Web%20API-e65100?style=flat-square" alt="Web NFC" />
@@ -25,6 +27,11 @@
   <a href="#-admin-dashboard">Admin</a> •
   <a href="#-google-sheets-sync">Google Sheets</a> •
   <a href="#-android-build">Android</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/glainejustin/signout/releases/latest/download/signout-latest.apk"><strong>⬇️ Download the latest Android APK</strong></a><br/>
+  <sub>Always points at the newest release · debug-signed for testing, sideload with <code>adb install -r signout-latest.apk</code> · SHA-256 checksum published alongside</sub>
 </p>
 
 ---
@@ -160,6 +167,24 @@ Drag the `signout` folder onto [app.netlify.com/drop](https://app.netlify.com/dr
 
 ### Option 4 — Android APK (Capacitor)
 
+**Download a prebuilt APK** — no toolchain needed:
+
+- **Latest:** [`signout-latest.apk`](https://github.com/glainejustin/signout/releases/latest/download/signout-latest.apk)
+  (stable URL, always the newest release)
+- **A specific version:** [`releases/latest`](https://github.com/glainejustin/signout/releases/latest) → `signout-v1.1.1.apk`
+
+```bash
+# verify the download, then sideload to a connected device
+curl -L -O https://github.com/glainejustin/signout/releases/latest/download/signout-latest.apk
+curl -L -O https://github.com/glainejustin/signout/releases/latest/download/signout-latest.apk.sha256
+sha256sum -c signout-latest.apk.sha256
+adb install -r signout-latest.apk
+```
+
+> APKs are **debug-signed** — ideal for testers, but Play Store uploads need a signed release build.
+
+**Or build it yourself:**
+
 ```bash
 npm install
 npm run build          # stages the web app into dist/ (never ships tests/ or node_modules)
@@ -173,6 +198,8 @@ npx cap open android   # builds in Android Studio
 > **Prebuilt APKs:** pushing a `v*` tag runs [`.github/workflows/release.yml`](.github/workflows/release.yml),
 > which builds a debug APK on CI (JDK 21 + the runner's Android SDK) and attaches
 > `signout-<tag>.apk` plus a `.sha256` checksum to that tag's GitHub release — no Android Studio needed.
+> Every release also carries `signout-latest.apk`, the stable alias the badge and download link above point at,
+> so those URLs never need repointing as versions move.
 
 ---
 
