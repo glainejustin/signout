@@ -152,12 +152,27 @@ jobs:
             signout-latest.apk
             signout-latest.apk.sha256
 
-      # A tag with no release yet (e.g. an older tag) still gets one.
+      # A tag with no release yet still gets one, documented with that version's
+      # CHANGELOG section (falling back to GitHub's generated notes if the version
+      # has no section). Never rewrites notes on a release that already exists.
       - name: Ensure the release exists
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.rel.outputs.tag }}
-        run: gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "$TAG" --generate-notes
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "release $TAG already exists — leaving its notes untouched"
+            exit 0
+          fi
+          VERSION="${TAG#v}"
+          NOTES=$(awk -v v="## [$VERSION]" 'index($0, v) == 1 { f = 1 } /^## \[/ && index($0, v) != 1 { f = 0 } f' CHANGELOG.md)
+          if [ -n "$NOTES" ]; then
+            echo "creating $TAG from the CHANGELOG section"
+            gh release create "$TAG" --title "$TAG" --notes "$NOTES"
+          else
+            echo "::warning::no CHANGELOG section for $VERSION — using generated notes"
+            gh release create "$TAG" --title "$TAG" --generate-notes
+          fi
 
       - name: Attach APK to the release
         env:

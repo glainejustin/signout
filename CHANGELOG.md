@@ -8,6 +8,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 <!-- New entries go here. When releasing, rename the section to `## [x.y.z] — YYYY-MM-DD`,
      bump the version in package.json + package-lock.json, and add a compare link at the bottom. -->
 
+### Changed
+- **Release notes come from the changelog.** The release workflow now fills a brand-new release's body with
+  that version's `CHANGELOG.md` section (falling back to GitHub's generated notes only when a version has no
+  section), rather than always publishing a bare `**Full Changelog**` link. Existing releases are never
+  rewritten. Backfilled v1.1.1 and v1.1.2, which had shipped with generated notes.
+
 ## [1.1.2] — 2026-09-23
 
 Branding patch: the app icon, launcher icon and launch splash are SignOut's own now, and the APK
