@@ -26,6 +26,7 @@
  * by the generator alone, so an audit does not need Capacitor or the Android SDK.
  */
 
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
@@ -260,6 +261,69 @@ const near = (a, b, tol = TOLERANCE) => a.every((v, i) => Math.abs(v - b[i]) <= 
  */
 export const normalizeKey = rel => rel.replace(/\\/g, '/').replace(/^res\//, '').replace(/-v\d+\//, '/');
 
+/** Content hash of a decoded image, used to spot two expectations that are the same artwork. */
+export const contentHash = img => crypto.createHash('sha256')
+  .update(Buffer.from(img.data.buffer, img.data.byteOffset, img.data.length))
+  .digest('hex');
+
+/**
+ * Match every expected image against the PNGs the APK actually contains — by **content**,
+ * not by path.
+ *
+ * The path comparison alone is not enough for a *release* build: AGP's resource
+ * optimisations canonicalise `res/` paths (a launcher icon can end up as `res/aB.png`), so
+ * a release APK legitimately contains the artwork under names the generator never wrote.
+ * That produced a 26/26 false alarm on the first signed release — the exact failure mode
+ * this file's own header warns about, where a guard fails for an irrelevant reason.
+ *
+ * Matching on the drawing keeps the property that matters (the shipped binary carries the
+ * generated artwork) while surviving renaming. `expected` and `candidates` are both
+ * `Map<key, decodedImage>`; an APK entry is consumed once, so the *count* of distinct
+ * branding images in the binary is still enforced rather than one file satisfying every
+ * expectation. Two expectations that are byte-identical artwork may share one candidate,
+ * because a build is entitled to store identical resources once.
+ *
+ * Returns `{ matched, missing, byPath }` — `matched` maps an expected key to the APK key
+ * that satisfied it.
+ */
+export function matchByContent(expected, candidates, { tolerance = TOLERANCE } = {}) {
+  const matched = new Map();
+  const byPath = new Set();
+  const missing = [];
+  const used = new Set();
+  const servedBy = new Map(); // content hash → the APK key that already satisfied it
+
+  for (const [key, img] of expected) {
+    const direct = candidates.get(key);
+    if (direct && compareImages(img, direct, tolerance).ok) {
+      matched.set(key, key);
+      byPath.add(key);
+      used.add(key);
+      servedBy.set(contentHash(img), key);
+      continue;
+    }
+
+    // Identical artwork already matched elsewhere — one stored copy is enough.
+    const hash = contentHash(img);
+    if (servedBy.has(hash)) {
+      matched.set(key, servedBy.get(hash));
+      continue;
+    }
+
+    let found = null;
+    for (const [candidateKey, candidate] of candidates) {
+      if (used.has(candidateKey)) continue;
+      if (compareImages(img, candidate, tolerance).ok) { found = candidateKey; break; }
+    }
+    if (!found) { missing.push(key); continue; }
+    matched.set(key, found);
+    used.add(found);
+    servedBy.set(hash, found);
+  }
+
+  return { matched, missing, byPath };
+}
+
 // ── CLI ──────────────────────────────────────────────────────
 
 function collectPngs(dir, root = dir) {
@@ -303,6 +367,17 @@ function main() {
   }
   const generated = collectPngs(resDir);
 
+  // AGP renames `res/` paths in release builds, so the expected key may not exist even
+  // though the artwork does. Everything under res/ is a candidate for the content match.
+  const apkResPngs = new Map();
+  for (const e of entries) {
+    if (!/\.png$/i.test(e.name) || !/^res\//.test(e.name.replace(/\\/g, '/'))) continue;
+    if (apkResPngs.has(e.name)) continue;
+    try {
+      apkResPngs.set(e.name, decodePng(readZipEntry(apk, e)));
+    } catch { /* not a PNG we can read — it simply cannot satisfy an expectation */ }
+  }
+
   console.log(`APK:        ${path.relative(ROOT, apkPath)} (${(apk.length / 1024 / 1024).toFixed(2)} MB, ${entries.length} entries)`);
   console.log(`Generated:  ${path.relative(ROOT, resDir)} (${generated.size} PNGs)`);
   console.log(`Expecting:  ${EXPECTED_KEYS.length} branded images\n`);
@@ -311,22 +386,47 @@ function main() {
   let matched = 0;
   let worstDiff = 0;
   let worstKey = null;
+  const pathMisses = [];
+  const generatedImages = new Map();
+
+  // The splash must be navy with something drawn on it, not a blank rectangle.
+  const checkSplash = (key, shipped) => {
+    const corner = pixelAt(shipped, 0, 0);
+    const centre = pixelAt(shipped, shipped.width >> 1, shipped.height >> 1);
+    if (!near(corner.slice(0, 3), SPLASH_NAVY)) {
+      annotate('::error::', `${key} background is rgb(${corner.slice(0, 3)}) — expected navy rgb(${SPLASH_NAVY}).`);
+    }
+    if (near(centre.slice(0, 3), SPLASH_NAVY)) {
+      annotate('::error::', `${key} centre is empty — the splash has no logo drawn on it.`);
+    }
+  };
+
   for (const key of EXPECTED_KEYS) {
     const genPath = generated.get(key);
-    const zipEntry = zipPngs.get(key);
     if (!genPath) {
       annotate('::error::', `generator produced no ${key} — the "Brand the app icons" step is incomplete.`);
       continue;
     }
-    if (!zipEntry) {
-      annotate('::error::', `APK embeds no ${key} — the build did not pick up the generated artwork.`);
+
+    let gen;
+    try {
+      gen = decodePng(fs.readFileSync(genPath));
+      generatedImages.set(key, gen);
+    } catch (err) {
+      annotate('::error::', `could not read the generated ${key}: ${err.message}`);
       continue;
     }
 
-    let gen;
+    const zipEntry = zipPngs.get(key);
+    if (!zipEntry) {
+      // Not at the canonical path. A release build renames res/ entries, so this is retried
+      // by content below instead of failing here.
+      pathMisses.push(key);
+      continue;
+    }
+
     let shipped;
     try {
-      gen = decodePng(fs.readFileSync(genPath));
       shipped = decodePng(readZipEntry(apk, zipEntry));
     } catch (err) {
       annotate('::error::', `could not compare ${key}: ${err.message}`);
@@ -334,6 +434,8 @@ function main() {
     }
     const cmp = compareImages(gen, shipped);
     if (!cmp.ok) {
+      // Present at the right path but drawn differently: that is stale artwork, and matching
+      // it by content elsewhere would only hide it.
       annotate('::error::', cmp.dimsMatch
         ? `${key} does not match the generated artwork (max cell delta ${cmp.maxDiff.toFixed(1)} > ${TOLERANCE}) — stale or wrong icon in the APK.`
         : `${key} is ${cmp.bSize.join('×')} in the APK but ${cmp.aSize.join('×')} as generated.`);
@@ -341,17 +443,32 @@ function main() {
     }
     matched++;
     if (worstKey === null || cmp.maxDiff > worstDiff) { worstDiff = cmp.maxDiff; worstKey = key; }
+    if (key.endsWith('splash.png')) checkSplash(key, shipped);
+  }
 
-    // The splash must be navy with something drawn on it, not a blank rectangle.
-    if (key.endsWith('splash.png')) {
-      const corner = pixelAt(shipped, 0, 0);
-      const centre = pixelAt(shipped, shipped.width >> 1, shipped.height >> 1);
-      if (!near(corner.slice(0, 3), SPLASH_NAVY)) {
-        annotate('::error::', `${key} background is rgb(${corner.slice(0, 3)}) — expected navy rgb(${SPLASH_NAVY}).`);
-      }
-      if (near(centre.slice(0, 3), SPLASH_NAVY)) {
-        annotate('::error::', `${key} centre is empty — the splash has no logo drawn on it.`);
-      }
+  // 1b. Whatever the path lookup missed is searched for by content across the whole APK.
+  //     Without this every signed release fails: AGP canonicalises resource paths in release
+  //     builds, and the first signed release reported 0/26 for exactly that reason — the
+  //     artwork was in the binary, under names the generator never wrote.
+  const resolvedByContent = [];
+  if (pathMisses.length) {
+    const expected = new Map(pathMisses.map(k => [k, generatedImages.get(k)]).filter(([, img]) => img));
+    const { matched: byContent, missing } = matchByContent(expected, apkResPngs);
+    for (const [key, apkKey] of byContent) {
+      matched++;
+      resolvedByContent.push(`${key} → ${apkKey}`);
+      if (key.endsWith('splash.png')) checkSplash(key, apkResPngs.get(apkKey));
+    }
+    for (const key of missing) {
+      annotate('::error::', `APK embeds no ${key} — the build did not pick up the generated artwork `
+        + `(searched all ${apkResPngs.size} PNGs under res/, by path and by pixels).`);
+    }
+    if (missing.length) {
+      // Only on failure: enough of the APK's actual contents to tell "the build dropped the
+      // artwork" apart from "the artwork is here under a layout this check does not know".
+      const sample = [...apkResPngs.keys()].slice(0, 5).join(', ');
+      console.log(`::notice::${apkResPngs.size} PNG(s) under res/ in this APK`
+        + (sample ? `, e.g. ${sample}` : '') + (apkResPngs.size > 5 ? ', …' : ''));
     }
   }
 
@@ -378,6 +495,13 @@ function main() {
   }
 
   for (const w of warnings) console.log(w);
+
+  if (resolvedByContent.length) {
+    console.log(`::notice::${resolvedByContent.length} of the ${EXPECTED_KEYS.length} images were found by content, `
+      + 'not by path — this APK stores resources under canonicalised names (AGP release optimisation).');
+    for (const line of resolvedByContent.slice(0, 3)) console.log(`  ${line}`);
+    if (resolvedByContent.length > 3) console.log(`  …and ${resolvedByContent.length - 3} more`);
+  }
 
   console.log(`\nverified ${matched}/${EXPECTED_KEYS.length} branded images`);
   if (worstKey) {

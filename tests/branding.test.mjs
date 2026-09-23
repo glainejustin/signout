@@ -18,7 +18,9 @@ import {
   SIGNATURE_GRID,
   SPLASH_NAVY,
   compareImages,
+  contentHash,
   decodePng,
+  matchByContent,
   normalizeKey,
   pixelAt,
   pixelSignature,
@@ -148,6 +150,100 @@ test('the navy is the same in the verifier, manifest and index.html', () => {
 test('a non-zip file is rejected with a clear error', () => {
   assert.throws(() => readZipEntries(Buffer.from('this is definitely not an APK, not even close')), /not a zip/i);
 });
+
+// ── Matching by content, for release builds ─────────────────────────────────
+// AGP canonicalises `res/` paths in release builds (`res/mipmap-xxxhdpi-v4/ic_launcher.png`
+// becomes something like `res/aB.png`), so the first signed release failed 0/26 with the
+// artwork physically present in the binary. These pin the fallback: it must find renamed
+// artwork, and must not excuse artwork that is genuinely wrong or absent.
+
+/** Distinct generated images, keyed by EXPECTED_KEYS' shape (approximated with real files). */
+const artwork = () => new Map([
+  ['mipmap-mdpi/ic_launcher.png', readIcon('icon-192.png')],
+  ['mipmap-hdpi/ic_launcher.png', readIcon('icon-512.png')],
+  ['drawable/splash.png', readIcon('apple-touch-icon.png')],
+  ['drawable-land-mdpi/splash.png', readIcon('favicon-32.png')],
+]);
+
+/** An APK whose res/ entries have been renamed, as a release build does. */
+const renamed = (expected, shorts = ['res/aB.png', 'res/cD.png', 'res/eF.png', 'res/gH.png']) => {
+  const out = new Map();
+  [...expected.values()].forEach((img, i) => out.set(shorts[i], img));
+  return out;
+};
+
+test('renamed release resources are still matched, because they are the same drawing', () => {
+  const expected = artwork();
+  const { matched, missing, byPath } = matchByContent(expected, renamed(expected));
+  assert.equal(missing.length, 0, 'nothing should be reported missing');
+  assert.equal(matched.size, expected.size);
+  assert.equal(byPath.size, 0, 'none of these matched by path — that is the point');
+  assert.equal(matched.get('mipmap-mdpi/ic_launcher.png'), 'res/aB.png');
+});
+
+test('a path match is preferred and consumes only its own entry', () => {
+  const expected = artwork();
+  const candidates = new Map([...expected.entries()]);
+  const { byPath, missing } = matchByContent(expected, candidates);
+  assert.equal(byPath.size, expected.size);
+  assert.equal(missing.length, 0);
+});
+
+test('stale artwork is not excused by the content search', () => {
+  const expected = artwork();
+  const candidates = renamed(expected, ['res/aB.png', 'res/cD.png', 'res/eF.png']);
+  // The fourth image is present but repainted, so it cannot satisfy its expectation.
+  const stale = { width: 32, height: 32, data: Uint8Array.from(readIcon('favicon-32.png').data) };
+  for (let i = 0; i < stale.data.length; i += 4) stale.data[i] = 255;
+  candidates.set('res/gH.png', stale);
+
+  const { missing } = matchByContent(expected, candidates);
+  assert.deepEqual(missing, ['drawable-land-mdpi/splash.png']);
+});
+
+test('an absent image is reported, however the APK is laid out', () => {
+  const expected = artwork();
+  const candidates = renamed(expected, ['res/aB.png', 'res/cD.png', 'res/eF.png']);
+  const { missing } = matchByContent(expected, candidates);
+  assert.deepEqual(missing, ['drawable-land-mdpi/splash.png']);
+});
+
+test('one stored copy cannot satisfy two different expectations', () => {
+  // The count of distinct branding images is what makes this check worth anything: a build
+  // that dropped three of four icons must not pass by having one left over.
+  const expected = artwork();
+  const onlyFirst = new Map([['res/only.png', readIcon('icon-192.png')]]);
+  const { matched, missing } = matchByContent(expected, onlyFirst);
+  assert.equal(matched.size, 1);
+  assert.equal(missing.length, expected.size - 1);
+});
+
+test('identical artwork may legitimately be stored once', () => {
+  // `drawable/splash.png` and `drawable-land-mdpi/splash.png` are the same 480x320 drawing,
+  // and a build is entitled to deduplicate identical resources.
+  const img = readIcon('icon-192.png');
+  const expected = new Map([
+    ['drawable/splash.png', img],
+    ['drawable-land-mdpi/splash.png', img],
+  ]);
+  assert.equal(contentHash(img), contentHash({ width: img.width, height: img.height, data: Uint8Array.from(img.data) }),
+    'the hash must not depend on the buffer identity');
+  const { matched, missing } = matchByContent(expected, new Map([['res/x.png', img]]));
+  assert.equal(missing.length, 0);
+  assert.equal(matched.get('drawable/splash.png'), 'res/x.png');
+  assert.equal(matched.get('drawable-land-mdpi/splash.png'), 'res/x.png', 'the twin reuses the same stored copy');
+});
+
+const SPLASH_A = path.join(ROOT, 'android/app/src/main/res/drawable/splash.png');
+const SPLASH_B = path.join(ROOT, 'android/app/src/main/res/drawable-land-mdpi/splash.png');
+
+test('the real generated splashes are a dedupable pair, which is why that case exists',
+  { skip: fs.existsSync(SPLASH_A) ? false : 'android/ not generated here (npx cap add android + npm run icons -- --android)' },
+  () => {
+    // If this ever stops being true the test above becomes theoretical; while it holds, the
+    // dedupe allowance is load-bearing for release builds that store identical resources once.
+    assert.equal(contentHash(decodePng(fs.readFileSync(SPLASH_A))), contentHash(decodePng(fs.readFileSync(SPLASH_B))));
+  });
 
 // ── The web icon set ────────────────────────────────────────────────────────
 // A launcher masks a `maskable` icon to whatever shape its theme wants, so two things have
