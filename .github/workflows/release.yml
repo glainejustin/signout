@@ -25,6 +25,8 @@ jobs:
     name: Build Android APK
     runs-on: ubuntu-latest
 
+    # The keystore is written to $RUNNER_TEMP, never to the workspace: it must not end up
+    # in an artifact, a cache, or the checked-out tree.
     steps:
       # On a tag push both resolve to the tag; on a manual run this checks out the
       # tag you named (not `main`), so the APK matches the release it's attached to.
@@ -35,6 +37,25 @@ jobs:
       - name: Resolve release tag
         id: rel
         run: echo "tag=${{ github.event.inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
+
+      # A Play-uploadable AAB must be signed with the upload key, and that key can only come
+      # from a repository secret — the workflow will never invent one, because a keystore
+      # generated per run would produce an app nobody can update. Without the secret the
+      # job still ships the debug APK, but says so loudly instead of quietly attaching an
+      # unsigned AAB that Play would reject.
+      - name: Detect signing credentials
+        id: signing
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "Signing credentials present — building a signed AAB and release APK."
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No ANDROID_KEYSTORE_BASE64 secret: this release gets the debug APK only (no Play-uploadable AAB)."
+            echo "::warning::Add ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD — see README → Signed release builds."
+          fi
 
       # Guard rail: this workflow always runs from the default branch but builds the
       # *tagged* tree, so a tag cut before the staging script existed can't be built
@@ -48,6 +69,13 @@ jobs:
             exit 1
           fi
           node -e "const s=JSON.parse(require('fs').readFileSync('package.json','utf8')).scripts||{}; if(!s.build){console.error('::error::package.json has no build script');process.exit(1)}"
+          # Only fatal when signing is actually configured: a tag cut before the signing
+          # script existed can still produce a debug APK, it just cannot be signed.
+          if [ "${{ steps.signing.outputs.configured }}" = "true" ] && [ ! -f scripts/configure-android-signing.mjs ]; then
+            echo "::error::${{ steps.rel.outputs.tag }} predates the release-signing script, so it cannot be signed."
+            echo "::error::Tag a commit that includes it (e.g. the tip of main) instead of re-building an older tag."
+            exit 1
+          fi
           echo "✅ ${{ steps.rel.outputs.tag }} contains the build pipeline"
 
       - name: Setup Node
@@ -126,6 +154,91 @@ jobs:
       - name: Verify the APK ships the branded artwork
         run: npm run verify:apk
 
+      # ── Signed release artifacts (Play) ──────────────────────────────────────
+
+      - name: Decode the signing keystore
+        if: steps.signing.outputs.configured == 'true'
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          KEYSTORE="$RUNNER_TEMP/upload.jks"
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$KEYSTORE"
+          test -s "$KEYSTORE" || { echo "::error::the decoded keystore is empty — is ANDROID_KEYSTORE_BASE64 set correctly?"; exit 1; }
+          echo "ANDROID_KEYSTORE_PATH=$KEYSTORE" >> "$GITHUB_ENV"
+          echo "keystore decoded to \$RUNNER_TEMP/upload.jks ($(wc -c < "$KEYSTORE") bytes)"
+
+      # Patches the generated app/build.gradle: a signingConfig reading the credentials
+      # from the environment, the release build type wired to it, and versionCode /
+      # versionName taken from the tag (Play permanently rejects a re-used version code,
+      # and Capacitor's template hardcodes versionCode 1).
+      - name: Configure release signing
+        if: steps.signing.outputs.configured == 'true'
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: node scripts/configure-android-signing.mjs "${{ steps.rel.outputs.tag }}"
+
+      # The credentials are passed to this step explicitly rather than exported via
+      # $GITHUB_ENV: Gradle reads them from the environment (`System.getenv` in the patched
+      # build.gradle), and a step-level `env:` does not carry over to later steps — so
+      # exporting only the keystore *path* and relying on the secrets from the configure
+      # step would hand Gradle null passwords and fail at signing time, on a real tag.
+      # Scoping them here also keeps the secrets out of every other step's environment.
+      - name: Build signed AAB and release APK
+        if: steps.signing.outputs.configured == 'true'
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew bundleRelease assembleRelease --no-daemon
+
+      # "It built" is not "it is signed": prove the signature, because an unsigned AAB is
+      # only rejected at the Play upload console, long after the release went out.
+      - name: Verify the signature
+        if: steps.signing.outputs.configured == 'true'
+        run: |
+          set -euo pipefail
+          AAB="android/app/build/outputs/bundle/release/app-release.aab"
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+          test -f "$AAB" || { echo "::error::no AAB produced at $AAB"; exit 1; }
+          test -f "$APK" || { echo "::error::no release APK produced at $APK"; exit 1; }
+
+          # An AAB is a signed JAR, so it must carry a signature entry.
+          SIG=$(unzip -l "$AAB" | grep -oE 'META-INF/[^ ]+\.(RSA|DSA|EC)' | head -1 || true)
+          test -n "$SIG" || { echo "::error::the AAB carries no META-INF signature — Play would reject it"; exit 1; }
+          echo "AAB signature entry: $SIG"
+
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          test -n "$SDK" || { echo "::error::neither ANDROID_HOME nor ANDROID_SDK_ROOT is set"; exit 1; }
+          APKSIGNER=$(find "$SDK/build-tools" -name apksigner -type f 2>/dev/null | sort -V | tail -1)
+          test -n "$APKSIGNER" || { echo "::error::apksigner not found in $SDK/build-tools"; exit 1; }
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
+
+      # The signed build is a different Gradle variant, so the artwork has to be proven
+      # here too rather than inferred from the debug build.
+      - name: Verify the release APK ships the branded artwork
+        if: steps.signing.outputs.configured == 'true'
+        run: node scripts/verify-apk-branding.mjs android/app/build/outputs/apk/release/app-release.apk
+
+      - name: Name and checksum the signed artifacts
+        id: signed
+        if: steps.signing.outputs.configured == 'true'
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.rel.outputs.tag }}"
+          AAB="signout-${TAG}.aab"
+          APK="signout-${TAG}-release.apk"
+          cp android/app/build/outputs/bundle/release/app-release.aab "$AAB"
+          cp android/app/build/outputs/apk/release/app-release.apk "$APK"
+          sha256sum "$AAB" > "$AAB.sha256"
+          sha256sum "$APK" > "$APK.sha256"
+          echo "aab=$AAB" >> "$GITHUB_OUTPUT"
+          echo "apk=$APK" >> "$GITHUB_OUTPUT"
+          ls -lh "$AAB" "$APK"
+
       - name: Name the APK after the tag and checksum it
         id: apk
         run: |
@@ -160,6 +273,18 @@ jobs:
             signout-latest.apk
             signout-latest.apk.sha256
 
+      - name: Upload signed artifacts
+        if: steps.signing.outputs.configured == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: signout-signed-${{ steps.rel.outputs.tag }}
+          if-no-files-found: error
+          path: |
+            ${{ steps.signed.outputs.aab }}
+            ${{ steps.signed.outputs.aab }}.sha256
+            ${{ steps.signed.outputs.apk }}
+            ${{ steps.signed.outputs.apk }}.sha256
+
       # A tag with no release yet still gets one, documented with that version's
       # CHANGELOG section (falling back to GitHub's generated notes if the version
       # has no section). Never rewrites notes on a release that already exists.
@@ -192,6 +317,23 @@ jobs:
             signout-latest.apk signout-latest.apk.sha256 \
             --clobber
 
+      - name: Attach the signed artifacts to the release
+        if: steps.signing.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.rel.outputs.tag }}
+        run: |
+          gh release upload "$TAG" \
+            "${{ steps.signed.outputs.aab }}" "${{ steps.signed.outputs.aab }}.sha256" \
+            "${{ steps.signed.outputs.apk }}" "${{ steps.signed.outputs.apk }}.sha256" \
+            --clobber
+
+      # Best-effort, and always: the runner is ephemeral, but the workspace persists for the
+      # remaining steps and the key should not outlive the build that needed it.
+      - name: Remove the keystore
+        if: always() && steps.signing.outputs.configured == 'true'
+        run: rm -f "$RUNNER_TEMP/upload.jks" && echo "keystore removed"
+
       - name: Summary
         run: |
           {
@@ -208,4 +350,20 @@ jobs:
             echo "Install with \`adb install -r ${{ steps.apk.outputs.file }}\` or by opening the file on the device."
             echo ""
             echo "Artwork verified: all 26 branded images (icons + splash) match the generated design."
+            echo ""
+            if [ "${{ steps.signing.outputs.configured }}" = "true" ]; then
+              echo "#### Signed artifacts (Play)\n"
+              echo "| Artifact | Purpose |"
+              echo "|---|---|"
+              echo "| \`${{ steps.signed.outputs.aab }}\` | Play Store upload (signed AAB) |"
+              echo "| \`${{ steps.signed.outputs.apk }}\` | Signed release APK for testers |"
+              echo ""
+              echo '```'
+              cat "${{ steps.signed.outputs.aab }}.sha256" "${{ steps.signed.outputs.apk }}.sha256"
+              echo '```'
+            else
+              echo "#### ⚠️ No signed build\n"
+              echo "The signing secrets are not configured, so this release has **no Play-uploadable AAB**."
+              echo "Add \`ANDROID_KEYSTORE_BASE64\`, \`ANDROID_KEYSTORE_PASSWORD\`, \`ANDROID_KEY_ALIAS\` and \`ANDROID_KEY_PASSWORD\` (see README → Signed release builds)."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"

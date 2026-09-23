@@ -181,7 +181,9 @@ sha256sum -c signout-latest.apk.sha256
 adb install -r signout-latest.apk
 ```
 
-> APKs are **debug-signed** — ideal for testers, but Play Store uploads need a signed release build.
+> The APK above is **debug-signed** — ideal for sideloading, but Play Store uploads need a signed
+> release build. When the signing secrets are configured, every release also carries a
+> Play-uploadable `.aab` and a signed release APK — see [Signed release builds](#-signed-release-builds-play).
 
 **Or build it yourself:**
 
@@ -372,6 +374,10 @@ order, locally:
 | build debug APK | Capacitor sync, icon branding, `gradlew assembleDebug` |
 | verify APK branding | the built APK really ships the generated icons and splash |
 
+The signed artifacts (**Signed release builds** below) are the one part it cannot rehearse:
+signing needs the keystore, which exists only as a repository secret. Their wiring is
+asserted by the test suite instead, and the signed build itself first runs on a real tag.
+
 The APK stages need a JDK and an Android SDK. Without them the run ends **PARTIAL**, naming
 what was skipped — it never reports a pass it didn't earn:
 
@@ -401,6 +407,64 @@ release** — it downloads the latest APK, verifies the published checksums and 
 alias, regenerates the expected artwork from that release's own tag, and compares. It also
 fires whenever a release is published, and can be run on demand for any tag from the
 Actions tab.
+
+### 🔏 Signed release builds (Play)
+
+A debug APK cannot go to the Play Store, and neither can an AAB signed with a throwaway key:
+Play permanently binds the app to the **first** signing key it ever receives, so a key
+generated per CI run would produce an app nobody — including you — could ever update.
+
+The workflow therefore signs **only** with a keystore you supply as repository secrets, and
+never invents one. Set these under **Settings → Secrets and variables → Actions**:
+
+| Secret | What it is |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | the whole `.jks` keystore, base64-encoded (one line) |
+| `ANDROID_KEYSTORE_PASSWORD` | keystore password |
+| `ANDROID_KEY_ALIAS` | key alias inside the keystore |
+| `ANDROID_KEY_PASSWORD` | password for that alias |
+
+Create an upload keystore (keep it somewhere safe — losing it means opening a Play support
+request to reset the upload key):
+
+```bash
+keytool -genkeypair -v -keystore upload.jks -alias upload \
+  -keyalg RSA -keysize 4096 -validity 10000 -storetype JKS
+
+# GitHub secrets are text-only, so store the keystore as one base64 line
+base64 -w0 upload.jks > upload.jks.b64     # macOS: base64 -i upload.jks -o upload.jks.b64
+```
+
+With those set, a `v*` tag build additionally produces:
+
+| Artifact | Purpose |
+|---|---|
+| `signout-vX.Y.Z.aab` | the Play Console upload (signed Android App Bundle) |
+| `signout-vX.Y.Z-release.apk` | signed release APK, for testers who want the real build |
+
+both attached to the release with `.sha256` checksums and also kept as workflow artifacts
+(`signout-signed-<tag>`). Before anything is attached, the workflow proves the signature:
+it checks the AAB carries a `META-INF` signature entry and runs `apksigner verify
+--print-certs` against the release APK, then re-verifies that the release APK ships the
+branded artwork — a release build is a different Gradle variant, so its icons are proven
+independently rather than inferred from the debug APK.
+
+`versionCode` / `versionName` come from the tag. Capacitor's template hardcodes
+`versionCode 1`, which Play accepts exactly once, so the build maps `vMAJOR.MINOR.PATCH` to
+`versionCode = major*10000 + minor*100 + patch` (v1.1.2 → `10102`). This only orders
+correctly while minor and patch stay ≤ 99; the script refuses the tag rather than shipping a
+duplicate version code (a permanent Play rejection).
+
+> **Upload key, not app-signing key.** With Play App Signing enabled, Google holds the real
+> app key and this keystore only authorises uploads — which is why it is replaceable if
+> leaked. Anyone who obtains it can upload a release to your listing; treat it as a secret.
+>
+> **Signed and debug builds cannot coexist on one device.** They carry different signatures,>   so `adb install -r` fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE` — uninstall the debug
+> build first (`adb uninstall com.signout.attendance`).
+
+Without the secrets, nothing breaks: the job still publishes the debug APK, posts a
+`::warning::` annotation, and the run summary says so explicitly, so a release with no
+installable Play artifact can never be mistaken for one that has it.
 
 ---
 

@@ -17,7 +17,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   release, a CI artifact) with no Android toolchain at all. Platform plumbing — SDK/JDK discovery, the
   `cmd /c` wrapper Windows needs for the npm/npx shims, the Gradle wrapper invocation — is covered by
   `tests/release-check.test.mjs`. CI runs its fast path (`--no-android`) on every push and PR, so the
-  staged web payload and its leakage rules are now enforced there too, not only on release.
+  staged web payload and its leakage rules are now enforced there too, not only on release. Its
+  required-files stage also asserts the release workflow's own scripts exist (`build-web`,
+  `generate-icons`, `verify-apk`, `configure-android-signing`), so a missing one fails locally instead of
+  halfway through a release.
 - **`npm run verify:apk`** (`scripts/verify-apk-branding.mjs`) — opens a built APK, decodes its launcher,
   adaptive-foreground and splash PNGs and compares them against the generated artwork. The release
   workflow runs it right after `assembleDebug` and **fails before naming or uploading anything**, so an
@@ -35,6 +38,25 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   `verify:apk` comparison against the published binary. Runs nightly (06:17 UTC), immediately on
   `release: published`, and on demand for any tag. A tag predating the icon generator is skipped with a
   notice rather than reported as a failure.
+- **Signed release builds — a Play-uploadable AAB and a signed release APK.** Releases previously carried
+  only a debug-signed APK, which Play rejects: uploads need a bundle signed with an upload key, and Play
+  permanently binds an app to the first key it sees, so a per-run generated key would ship something
+  nobody could ever update. `scripts/configure-android-signing.mjs` patches the *generated*
+  `app/build.gradle` (there is no committed Gradle file to hold a signingConfig — `android/` is produced
+  by `cap add android` on each run) with a signingConfig that reads the credentials from the environment
+  at build time, so no secret is ever written to disk, and wires it to the **release build type inside
+  `buildTypes`** — the first `release {` in the patched file belongs to `signingConfigs`, so a file-wide
+  replace would silently leave the release build unsigned (a regression `tests/signing.test.mjs` now
+  pins down). The tag also sets `versionCode`/`versionName`, since Capacitor's template hardcodes
+  `versionCode 1` and Play rejects a version code it has already seen. `bundleRelease assembleRelease`
+  then produces `signout-vX.Y.Z.aab` and `signout-vX.Y.Z-release.apk`, both attached to the release with
+  checksums; before that, the workflow proves the AAB carries a `META-INF` signature entry, runs
+  `apksigner verify --print-certs` on the release APK, and re-runs the artwork verification against the
+  release variant rather than inferring it from the debug build. Credentials come only from
+  `ANDROID_KEYSTORE_BASE64` and the three password/alias secrets; **without them the job still publishes
+  the debug APK but warns visibly** in an annotation and in the run summary, so a release with no
+  Play-uploadable artifact cannot be mistaken for one that has it. Documented in the README under
+  *Signed release builds*.
 
 ### Changed
 - **All GitHub Actions bumped to their current majors** (`checkout` v4→v7, `setup-node` v4→v7, `setup-java` v5→v6,

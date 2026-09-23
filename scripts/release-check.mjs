@@ -34,6 +34,18 @@ const APK_REL = 'android/app/build/outputs/apk/debug/app-debug.apk';
 export const REQUIRED_FILES = ['index.html', 'manifest.json', 'service-worker.js', 'capacitor.config.json'];
 export const REQUIRED_DIRS = ['js', 'css'];
 
+/**
+ * Scripts the *release* workflow invokes. Its preflight fails without them, and the signed
+ * path in particular degrades loudly — so a missing one should be visible here, before a
+ * tag, rather than only on the release job.
+ */
+export const REQUIRED_RELEASE_SCRIPTS = [
+  'scripts/build-web.mjs',
+  'scripts/generate-icons.mjs',
+  'scripts/verify-apk-branding.mjs',
+  'scripts/configure-android-signing.mjs',
+];
+
 /** What `npm run build` must have produced, and must never have copied in. */
 export const REQUIRED_DIST = [
   'index.html',
@@ -205,6 +217,11 @@ export function main(argv) {
   npm run release:check -- --require-apk    # treat "cannot build the APK" as a failure
   npm run release:check -- --no-android     # fast: dependencies, files, tests, web build
   npm run release:check -- --fresh          # npm ci instead of reusing node_modules
+
+Signed release artifacts (Play AAB + release APK) are the one part of the release
+workflow this cannot rehearse: signing needs the keystore, which only exists as a
+repository secret. Their wiring is asserted by tests/signing.test.mjs instead, and the
+signed build itself first runs on a real tag.
 `);
     process.exit(0);
   }
@@ -245,10 +262,11 @@ export function main(argv) {
     const missing = [
       ...REQUIRED_FILES.filter(f => !fs.existsSync(path.join(ROOT, f))),
       ...REQUIRED_DIRS.filter(d => !fs.statSync(path.join(ROOT, d), { throwIfNoEntry: false })?.isDirectory()),
+      ...REQUIRED_RELEASE_SCRIPTS.filter(f => !fs.existsSync(path.join(ROOT, f))),
     ];
     return missing.length
       ? { status: 'fail', detail: `missing: ${missing.join(', ')}` }
-      : { status: 'pass', detail: `${REQUIRED_FILES.length} files, ${REQUIRED_DIRS.length} dirs` };
+      : { status: 'pass', detail: `${REQUIRED_FILES.length} files, ${REQUIRED_DIRS.length} dirs, ${REQUIRED_RELEASE_SCRIPTS.length} release scripts` };
   });
 
   // ── 3. Unit tests ─────────────────────────────────────────────────────────
