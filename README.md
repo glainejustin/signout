@@ -133,7 +133,7 @@ Perfect for **restaurants, warehouses, retail, clinics, factories** — any team
   <img src="icons/icon-512.png" width="220" alt="SignOut — tap to clock in" />
 </p>
 
-> Add a 3-second screen recording (`docs/demo.gif`, <3 MB) and replace the image above with `![Demo](docs/demo.gif)` — it auto-plays on GitHub.
+
 
 ---
 
