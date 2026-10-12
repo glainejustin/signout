@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>I Built a Workforce Attendance System With No Backend</title>
+<meta name="description" content="How SignOut runs a full worker attendance system — NFC clock-in, GPS geofencing, rota and payroll — entirely in the browser, with no backend.">
+<link rel="canonical" href="https://glainejustin.github.io/signout/blog/why-signout-has-no-backend/">
+<meta property="og:type" content="article">
+<meta property="og:title" content="I Built a Workforce Attendance System With No Backend">
+<meta property="og:description" content="No server. No subscription. No backend.">
+<meta property="og:url" content="https://glainejustin.github.io/signout/blog/why-signout-has-no-backend/">
+<meta property="og:image" content="https://glainejustin.github.io/signout/blog/why-signout-has-no-backend/cover.png">
+<meta property="og:image:width" content="2000">
+<meta property="og:image:height" content="1000">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="I Built a Workforce Attendance System With No Backend">
+<meta name="twitter:description" content="No server. No subscription. No backend.">
+<meta name="twitter:image" content="https://glainejustin.github.io/signout/blog/why-signout-has-no-backend/cover.png">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #0B1220; color: #E8EDF5;
+    font: 400 18px/1.7 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap { max-width: 740px; margin: 0 auto; padding: 56px 22px 96px; }
+  img.cover {
+    display: block; width: 100%; height: auto; border-radius: 10px;
+    border: 1px solid rgba(255,255,255,.08); margin-bottom: 40px;
+  }
+  h1 { font-size: 2.4rem; line-height: 1.15; letter-spacing: -.02em; margin: 0 0 12px; font-weight: 600; }
+  p.lede { font-size: 1.25rem; color: #9FB0C8; margin: 0 0 44px; }
+  h2 { font-size: 1.5rem; line-height: 1.25; margin: 52px 0 14px; font-weight: 600; letter-spacing: -.01em; }
+  p { margin: 0 0 22px; }
+  a { color: #F59E0B; text-decoration: none; border-bottom: 1px solid rgba(245,158,11,.35); }
+  a:hover { border-bottom-color: #F59E0B; }
+  code {
+    font: 400 .9em/1.4 ui-monospace, "Cascadia Mono", Consolas, monospace;
+    background: rgba(255,255,255,.07); padding: .12em .38em; border-radius: 4px;
+    border: 1px solid rgba(255,255,255,.07);
+  }
+  hr { border: 0; border-top: 1px solid rgba(255,255,255,.10); margin: 56px 0 24px; }
+  footer { font-size: .95rem; color: #9FB0C8; }
+</style>
+</head>
+<body>
+<article class="wrap">
+  <img class="cover" src="cover.png" alt="A phone showing the SignOut clock-in screen on a dark navy background, with faint signal arcs emitting from its NFC point" width="2000" height="1000">
+  <h1>I Built a Workforce Attendance System With No Backend</h1>
+  <p class="lede">No server. No subscription. No backend.</p>
+  <p>Most software doesn't need a server. Attendance software needs one least of all.</p>
+  <p>Every time-tracking product charges per seat per month, and underneath, they all do three
+things: store a list of people, store a list of timestamps, and subtract one from the other.
+You are paying rent on a database and a dashboard.</p>
+  <p>SignOut started from a blunt question: what if the app <em>is</em> the database? A worker's phone
+already has NFC, GPS, a camera, and a storage layer. The only thing missing was software. So I
+wrote it as a static web app — installable as a PWA, shippable as an Android APK — where the
+data lives on the device that collected it and syncs to Google Sheets when you want a
+server-side copy.</p>
+  <p>It runs live at <strong><a href="https://glainejustin.github.io/signout/">glainejustin.github.io/signout</a></strong>,
+and the whole thing is MIT-licensed on
+<strong><a href="https://github.com/glainejustin/signout">GitHub</a></strong>.</p>
+  <h2>What it actually does</h2>
+  <p>A worker taps an NFC sticker — a 15-cent NTAG213 tag stuck on a badge or a door — and the app
+records IN or OUT with a timestamp. No stickers? They log in with a 4-digit PIN or scan a
+printed QR badge. From there it handles breaks, GPS geofencing, per-site rota, leave requests,
+shift swaps, overtime rules, audit logging, and exports.</p>
+  <p>Admin gets a PIN-gated dashboard: logs, a rota grid, weekly hours with overtime / late /
+absent flags, analytics, leave approvals, multi-site geofences, an immutable audit trail, and
+worker management.</p>
+  <p>The part worth studying isn't the feature list. It's how little machinery it takes to produce
+it.</p>
+  <h2>How it works: five moving parts</h2>
+  <p><strong>1. Plain <code>script</code> modules, no build step.</strong> The app is <code>index.html</code> plus twenty-odd files in
+<code>js/</code>, each one an IIFE exposing a single global — <code>DB</code>, <code>GPS</code>, <code>NFC</code>, <code>Sanitize</code>, <code>UI</code>. No
+framework, no bundler, no transpiler. Open the folder and it runs. The build script exists only
+to <em>stage</em> those same files into <code>dist/</code> for the Android wrapper; it never transforms them.</p>
+  <p><strong>2. <code>localStorage</code> as the database.</strong> <code>js/db.js</code> is a hand-written data layer over key–value
+storage: workers, logs, settings, rotas, shifts, swaps, audit events, locations, leave
+requests. It handles schemas, queries, and — this matters — migrations. Legacy key prefixes are
+copied forward on first load, and plaintext PINs are transparently upgraded to SHA-256 hashes
+the first time they're seen.</p>
+  <p><strong>3. A service worker for offline-first.</strong> <code>service-worker.js</code> pre-caches every asset under a
+versioned cache name and serves cache-first. The app works with zero connectivity — a worker in
+a basement warehouse still clocks in — and it only bumps one string on release. Syncing to
+Sheets happens later, when the network returns.</p>
+  <p><strong>4. Haversine geofencing.</strong> <code>js/gps.js</code> is about a hundred lines: get the position, compute
+great-circle distance with the Haversine formula, compare against a configurable radius of 20
+to 500 metres. Outside the radius, clock-in is refused with the exact distance. That's it — no
+mapping SDK, no location service.</p>
+  <p><strong>5. SHA-256 PINs via Web Crypto.</strong> <code>js/security.js</code> hashes every PIN with
+<code>crypto.subtle.digest</code>, gates admin login behind a 15-minute lockout after five failures, locks
+a worker's account to one device after first login, and validates every outbound URL against an
+allow-list — <code>script.google.com</code>, <code>hooks.slack.com</code>, <code>discord.com</code>, <code>api.telegram.org</code> — so a
+compromised field can't exfiltrate data to an arbitrary host.</p>
+  <h2>Why it's effective</h2>
+  <p><strong>The cost structure is different, not just lower.</strong> There is no server to provision, no
+per-seat fee, and no uptime to page someone about. Total hardware cost is a phone workers
+already carry plus a few dollars of NFC stickers. For a 5-to-200-person restaurant, warehouse,
+retail floor, or clinic, that's the difference between a line item and free.</p>
+  <p><strong>Offline-first is a correctness property, not a feature.</strong> Because the database <em>is</em> the
+device, connectivity stops being an availability dependency. The app can't go down because the
+network did.</p>
+  <p><strong>Data ownership is explicit.</strong> Export is one click: JSON backup, CSV by range, PDF. Syncing to
+Sheets is opt-in and points at your own Apps Script deployment. Nobody is holding your
+attendance records hostage behind a subscription.</p>
+  <p><strong>The security model fits the threat.</strong> This isn't a bank. The adversary is a worker clocking in
+from the car park. Device fingerprinting, geofencing, shift-window guards, leave guards, hashed
+PINs, and brute-force lockouts are proportionate to that threat — and honest about it in a
+written <code>SECURITY.md</code>.</p>
+  <h2>The engineering discipline that surprises people</h2>
+  <p>The interesting part of SignOut isn't that it's small. It's that a zero-dependency static app
+still gets the boring infrastructure a "serious" project gets.</p>
+  <p>The test suite runs on Node's built-in runner with no test framework and no jsdom. Instead,
+<code>tests/harness.mjs</code> loads the real shipped <code>js/*.js</code> files into a <code>vm</code> sandbox with a tiny stub
+of <code>localStorage</code>, <code>document</code>, and Web Crypto. The tests exercise the code that ships, not a
+copy — the hours maths, the overtime guard, the sanitizers, the Haversine distance, the PIN
+migration.</p>
+  <p>CI then runs a <strong>release gate</strong> that replays the whole shipping pipeline locally: dependencies,
+required files, unit tests, web staging with a leakage check, debug APK build, and branding
+verification. Without a JDK and an Android SDK it ends <code>PARTIAL</code> and names what it skipped — it
+refuses to report a pass it didn't earn.</p>
+  <p>Two of those checks are worth stealing:</p>
+  <p><strong>APK branding verification</strong> decodes the built APK as a zip, decodes the launcher and splash
+PNGs, and compares them pixel-by-pixel against the generated artwork. A pre-rebrand icon once
+shipped silently. Now it can't.</p>
+  <p><strong>Action runtime checking</strong> reads each pinned GitHub Action's own <code>action.yml</code> at its pinned ref
+and fails if it runs on a deprecated Node runtime. No hand-maintained table — one encoded fact
+about the current Node major.</p>
+  <h2>Where it's honest about its limits</h2>
+  <p><code>localStorage</code> is single-device storage. Two kiosks don't share state unless you sync through
+Sheets. NFC requires Android plus Chrome with the tag hardware enabled — iOS Web NFC is limited.
+And the device-lock model means a wiped phone loses its local history unless it was exported.</p>
+  <p>These aren't bugs hidden in the fine print. They're the trade you accept in exchange for having
+no backend — and for a small site, it's the right trade.</p>
+  <h2>The takeaway</h2>
+  <p>Most software doesn't need a server. It needs the browser APIs it already ships with, a data
+layer you write yourself, and enough testing discipline to trust it.</p>
+  <p>SignOut clocks in a workforce with a tap, works with no signal, and costs nothing to run —
+because the architecture that makes it cheap is the same one that makes it reliable.</p>
+  <p><em>Live demo: <a href="https://glainejustin.github.io/signout/">glainejustin.github.io/signout</a> · Source:
+<a href="https://github.com/glainejustin/signout">github.com/glainejustin/signout</a> · MIT licensed.</em></p>
+  <hr>
+  <footer>
+    <p>This article is the original. If you are reading a copy elsewhere, the canonical
+    version is <a href="https://glainejustin.github.io/signout/blog/why-signout-has-no-backend/">https://glainejustin.github.io/signout/blog/why-signout-has-no-backend/</a>.</p>
+  </footer>
+</article>
+</body>
+</html>
